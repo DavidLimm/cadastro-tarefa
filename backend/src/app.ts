@@ -47,6 +47,9 @@ export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
   const repositorio = opcoes.repositorio ?? new TarefaRepositorioMemoria();
   const agora = opcoes.agora ?? (() => new Date());
   const app = Fastify();
+  // O Fastify aceita text/plain por padrão e entregaria uma string à validação (mensagem enganosa).
+  // Sem o parser, qualquer tipo que não seja JSON cai em FST_ERR_CTP_INVALID_MEDIA_TYPE.
+  app.removeContentTypeParser('text/plain');
 
   // Qualquer falha de corpo (JSON quebrado, vazio, content-type errado) vira 400 problem+json.
   app.setErrorHandler((erro, _requisicao, resposta) => {

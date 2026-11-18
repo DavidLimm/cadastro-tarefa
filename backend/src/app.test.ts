@@ -427,3 +427,92 @@ describe('DELETE /api/tarefas/:id', () => {
     await app.close();
   });
 });
+
+describe('id de rota estrito (R-03/R-04) com tarefa 1 existente', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const JSON_H = { 'content-type': 'application/json' };
+  const nova = { titulo: 'Original', prioridade: 'MEDIA', prazo: '2030-06-20' };
+  const comTarefa = async () => {
+    const app = criarApp({ agora });
+    const criada = (await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify(nova), headers: JSON_H })).json() as { id: number };
+    expect(criada.id).toBe(1);
+    const lista = async () => (await app.inject({ method: 'GET', url: '/api/tarefas' })).json();
+    return { app, antes: await lista(), lista };
+  };
+  const IDS_PARECIDOS_COM_1 = ['01', '+1', '%201', '0x1', '1e0', '1.0', '1abc'];
+
+  it.each(IDS_PARECIDOS_COM_1)('PATCH id %s -> 404 e a tarefa 1 continua intacta', async (id) => {
+    const { app, antes, lista } = await comTarefa();
+    const r = await app.inject({ method: 'PATCH', url: `/api/tarefas/${id}`, payload: JSON.stringify({ status: 'FAZENDO', titulo: 'Alterada' }), headers: JSON_H });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(await lista()).toEqual(antes);
+    await app.close();
+  });
+
+  it.each(IDS_PARECIDOS_COM_1)('DELETE id %s -> 404 e a tarefa 1 continua existindo', async (id) => {
+    const { app, antes, lista } = await comTarefa();
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${id}` });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(await lista()).toEqual(antes);
+    await app.close();
+  });
+
+  it.each(['9007199254740993', '1e2'])('PATCH e DELETE com id %s -> 404', async (id) => {
+    const { app } = await comTarefa();
+    expect((await app.inject({ method: 'PATCH', url: `/api/tarefas/${id}`, payload: JSON.stringify({ status: 'FAZENDO' }), headers: JSON_H })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'DELETE', url: `/api/tarefas/${id}` })).statusCode).toBe(404);
+    await app.close();
+  });
+});
+
+describe('DELETE e Content-Type (ADR 0009)', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const JSON_H = { 'content-type': 'application/json' };
+  const criar = async (app: ReturnType<typeof criarApp>) =>
+    app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify({ titulo: 'A', prioridade: 'MEDIA', prazo: '2030-06-20' }), headers: JSON_H });
+
+  it.each([['vazio', ''], ['quebrado', '{quebrado']])('id inexistente com content-type json e corpo %s -> 404 (não 400)', async (_nome, payload) => {
+    const app = criarApp({ agora });
+    const r = await app.inject({ method: 'DELETE', url: '/api/tarefas/99', payload, headers: JSON_H });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    await app.close();
+  });
+
+  // Documenta para o front: no DELETE NÃO enviar Content-Type (o Fastify rejeita JSON com corpo vazio).
+  it('tarefa existente: com content-type json e corpo vazio -> 400; sem content-type -> 204', async () => {
+    const app = criarApp({ agora });
+    await criar(app);
+    const com = await app.inject({ method: 'DELETE', url: '/api/tarefas/1', headers: JSON_H });
+    expect(com.statusCode).toBe(400);
+    expect(com.headers['content-type']).toContain('application/problem+json');
+    const sem = await app.inject({ method: 'DELETE', url: '/api/tarefas/1' });
+    expect(sem.statusCode).toBe(204);
+    await app.close();
+  });
+});
+
+describe('content-type errado nas rotas com corpo', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const TEXTO = { 'content-type': 'text/plain' };
+
+  it('PATCH com text/plain -> 400 com detail de tipo de conteúdo', async () => {
+    const app = criarApp({ agora });
+    await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify({ titulo: 'A', prioridade: 'MEDIA', prazo: '2030-06-20' }), headers: { 'content-type': 'application/json' } });
+    const r = await app.inject({ method: 'PATCH', url: '/api/tarefas/1', payload: JSON.stringify({ status: 'FAZENDO' }), headers: TEXTO });
+    expect(r.statusCode).toBe(400);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(r.json().detail).toBe('O tipo de conteúdo deve ser application/json.');
+    await app.close();
+  });
+
+  it('POST com text/plain -> 400 com detail de tipo de conteúdo', async () => {
+    const app = criarApp({ agora });
+    const r = await app.inject({ method: 'POST', url: '/api/tarefas', payload: '{}', headers: TEXTO });
+    expect(r.statusCode).toBe(400);
+    expect(r.json().detail).toBe('O tipo de conteúdo deve ser application/json.');
+    await app.close();
+  });
+});
