@@ -162,3 +162,16 @@ describe('validarAtualizacao', () => {
     expect(validarAtualizacao('x', atual, hoje).ok).toBe(false);
   });
 });
+
+describe('validarNovaTarefa e status (achado do qa)', () => {
+  it('status enviado no corpo é descartado: valor não tem a chave status', () => {
+    const r = validarNovaTarefa(
+      { titulo: 'a', prioridade: 'ALTA', prazo: '2030-06-20', status: 'CONCLUIDO' },
+      new Date(2030, 5, 15),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(Object.keys(r.valor).sort()).toEqual(['prazo', 'prioridade', 'titulo']);
+    expect(r.valor).not.toHaveProperty('status');
+  });
+});

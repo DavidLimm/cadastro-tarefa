@@ -105,3 +105,21 @@ describe('situacaoDoPrazo em CONCLUIDO e ABANDONADO', () => {
     }
   });
 });
+
+// Caracterização (achado do qa): documenta o comportamento ATUAL com entradas fora do contrato.
+// Em produção isso não acontece: o contrato (validarNovaTarefa/validarAtualizacao) valida o prazo
+// antes, e limite é sempre o padrão. Estes testes só provam que a função não lança.
+// 'abc' vira NaN (cai em NO_PRAZO); '2026-02-30' é lido como 30/02 sem validar (VENCIDO); '' vira dia 0 (VENCIDO).
+const SITUACAO_ATUAL: Record<string, string> = { abc: 'NO_PRAZO', '2026-02-30': 'VENCIDO', '': 'VENCIDO' };
+describe('situacaoDoPrazo com entradas inválidas (caracterização)', () => {
+  it.each(['abc', '2026-02-30', ''])('prazo %j não lança e devolve uma situação definida', (prazo) => {
+    const r = situacaoDoPrazo(t(prazo), HOJE);
+    expect(r).toBeDefined();
+    expect(r.tipo).toBe(SITUACAO_ATUAL[prazo]);
+  });
+
+  it.each([0, -1])('limite %d não lança; PERTO deixa de existir', (limite) => {
+    expect(situacaoDoPrazo(t('2026-11-19'), HOJE, limite)).toEqual({ tipo: 'NO_PRAZO' });
+    expect(situacaoDoPrazo(t('2026-11-18'), HOJE, limite)).toEqual({ tipo: 'VENCE_HOJE' });
+  });
+});
