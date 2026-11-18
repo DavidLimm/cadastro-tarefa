@@ -1,27 +1,65 @@
 /* Estilo inspirado em ideias/Copy-of-novo-funil-1-tela-menor-1.png: fundo cinza-claro, cartões brancos
-   arredondados com sombra leve, cabeçalho de coluna em caixa alta, botão primário roxo. Fontes do sistema. */
+   arredondados com sombra leve, cabeçalho de coluna em caixa alta com contagem, botão primário roxo.
+   Fontes do sistema, sem CDN. Contraste (WCAG AA) medido por fórmula: ver estilo.md e estilo.test.ts, que lê
+   as variáveis abaixo. Mudou uma cor? Rode "npm test -w frontend" e atualize a tabela do estilo.md. */
 
 :root {
   --fundo: #eef0f6;
   --superficie: #ffffff;
   --texto: #1f2340;
-  --texto-suave: #5a6078; /* 5,5:1 sobre o fundo cinza (mais sobre branco) */
+  --texto-suave: #5a6078;
   --linha: #d5d9e6;
-  --roxo: #5b3fd9; /* branco sobre roxo: 6,6:1 */
+  --borda-controle: #8a90a8; /* borda de botão secundário e de campo: 3:1 ou mais sobre branco */
+  --borda-vazio: #707690; /* borda tracejada de "Nenhuma tarefa": 3:1 ou mais sobre o fundo e sobre o alvo de arrasto */
+  --roxo: #5b3fd9;
   --roxo-escuro: #4a30b8;
   --roxo-fundo: #ece8fc;
-  --foco: #1d4ed8;
+  --contador-fundo: #3b3a6b;
+  --foco: #1d4ed8; /* anel de foco: 3:1 ou mais sobre todos os fundos onde aparece */
   --perigo: #b42318;
+  --perigo-escuro: #912018;
+  --desabilitado: #6b6f86;
   --sombra: 0 1px 3px rgb(31 35 64 / 14%), 0 1px 2px rgb(31 35 64 / 8%);
   --raio: 8px;
 
-  /* Selos: texto escuro sobre fundo claro (todos acima de 7:1). */
-  --alta-fundo: #fde4e4;
-  --alta-texto: #8f1d1d;
-  --media-fundo: #fdefc3;
-  --media-texto: #6b4200;
-  --baixa-fundo: #d8f3e2;
-  --baixa-texto: #11593a;
+  /* Aviso (role=alert) e confirmação de exclusão */
+  --erro-fundo: #fff1f0;
+  --erro-texto: #7f1d1d;
+  --erro-borda: #b42318;
+
+  /* Arrasto: coluna alvo */
+  --alvo-fundo: #e2dcfb;
+  --alvo-borda: #5b3fd9;
+
+  /* Cartões esmaecidos (Concluído/Abandonado): cores neutras, sem opacity, para manter o contraste */
+  --neutro-fundo: #f4f5f9;
+  --neutro-texto: #3f455f;
+  --neutro-selo-fundo: #e3e6f0;
+
+  /* Borda esquerda do cartão por urgência: vencido > vence hoje > perto > Alta.
+     Alta x Vencido (ambos "vermelhos" no ADR 0007) não se confundem: Alta é vinho/magenta, borda dupla e selo
+     preenchido com seta; Vencido é vermelho puro, borda sólida, fundo rosado, selo claro com alerta e "Atrasada Nd". */
+  --vencido-borda: #b91c1c;
+  --vencido-cartao: #fff5f5;
+  --hoje-borda: #c2410c;
+  --perto-borda: #a16207;
+  --alta-borda: #be185d;
+
+  /* Selos: texto escuro sobre fundo claro; só o de Alta é preenchido (branco sobre vinho). */
+  --alta-fundo: #9d174d;
+  --alta-texto: #ffffff;
+  --media-fundo: #fde68a;
+  --media-texto: #6b3a00;
+  --baixa-fundo: #e0f2fe;
+  --baixa-texto: #075985;
+  --vencido-fundo: #fee2e2;
+  --vencido-texto: #991b1b;
+  --hoje-fundo: #ffedd5;
+  --hoje-texto: #9a3412;
+  --perto-fundo: #fef9c3;
+  --perto-texto: #854d0e;
+  --no-prazo-fundo: #dcfce7;
+  --no-prazo-texto: #166534;
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: var(--texto);
@@ -44,6 +82,7 @@ body {
   padding: 20px 24px 40px;
 }
 
+/* Anel de foco em todos os controles (botão-título, Mover para…, opções, diálogo, selects, campos). */
 :focus-visible {
   outline: 3px solid var(--foco);
   outline-offset: 2px;
@@ -85,7 +124,7 @@ h1 {
 h1 .contador {
   padding: 2px 10px;
   border-radius: 6px;
-  background: #3b3a6b;
+  background: var(--contador-fundo);
   color: #fff;
   font-size: 0.85rem;
   font-weight: 600;
@@ -98,12 +137,15 @@ button {
 }
 
 .botao-primario,
-.botao-secundario {
+.botao-secundario,
+.botao-perigo,
+.botao-abandonar {
   min-height: 40px;
   padding: 8px 18px;
   border-radius: var(--raio);
   font-weight: 600;
   border: 1px solid transparent;
+  transition: background-color 0.12s;
 }
 
 .botao-primario {
@@ -116,36 +158,81 @@ button {
 }
 
 .botao-primario:disabled {
-  background: #6b6f86; /* branco sobre este cinza: 4,9:1 */
+  background: var(--desabilitado);
   cursor: progress;
 }
 
 .botao-secundario {
   background: var(--superficie);
   color: var(--roxo-escuro);
-  border-color: var(--linha);
+  border-color: var(--borda-controle);
 }
 
 .botao-secundario:hover {
   background: var(--roxo-fundo);
 }
 
-/* Quadro e colunas */
+.botao-perigo {
+  background: var(--perigo);
+  color: #fff;
+}
+
+.botao-perigo:hover:not(:disabled) {
+  background: var(--perigo-escuro);
+}
+
+/* Atalho "Mover para Abandonado" (cartão vencido): contornado, para não competir com o vermelho cheio de "Excluir". */
+.botao-abandonar {
+  background: var(--superficie);
+  color: var(--vencido-texto);
+  border-color: var(--vencido-borda);
+}
+
+.botao-abandonar:hover {
+  background: var(--vencido-fundo);
+}
+
+/* Botões pequenos dentro do cartão (alvo de toque de 32px) */
+.cartao .botao-secundario,
+.cartao .botao-abandonar {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+
+/* Quadro: colunas lado a lado, rolagem horizontal quando não couber; cada coluna rola na vertical. */
 .quadro {
+  position: relative; /* ancora os textos .so-leitor (absolutos) das colunas: sem isso vazam da rolagem e alargam a página */
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(270px, 1fr);
+  gap: 16px;
   align-items: start;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+}
+
+.coluna {
+  min-width: 0;
+  padding: 10px;
+  border: 2px solid transparent; /* reserva o espaço da borda tracejada do arrasto: nada pula */
+  border-radius: 12px;
+}
+
+.coluna[data-alvo-arrasto] {
+  border-color: var(--alvo-borda);
+  border-style: dashed;
+  background: var(--alvo-fundo);
 }
 
 .coluna-cabecalho {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   margin-bottom: 10px;
 }
 
 .coluna h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-size: 0.8rem;
   letter-spacing: 0.06em;
@@ -154,8 +241,25 @@ button {
 }
 
 .coluna .contador {
-  font-size: 0.8rem;
+  min-width: 24px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--superficie);
   color: var(--texto-suave);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+/* Rolagem vertical por coluna; o padding dá espaço à sombra e ao anel de foco, que o overflow cortaria. */
+.coluna-cartoes {
+  max-height: calc(100vh - 210px);
+  min-height: 80px;
+  padding: 6px;
+  margin: -6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .vazio,
@@ -167,28 +271,72 @@ button {
 .vazio {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--linha);
+  border: 1px dashed var(--borda-vazio);
   border-radius: var(--raio);
 }
 
 /* Cartões */
 .cartao {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   justify-items: start;
   margin-bottom: 10px;
   padding: 12px 14px;
   background: var(--superficie);
+  border-left: 5px solid transparent;
   border-radius: var(--raio);
   box-shadow: var(--sombra);
+  cursor: grab;
 }
 
-.cartao-titulo {
+.cartao:active {
+  cursor: grabbing;
+}
+
+.cartao[data-arrastando] {
+  opacity: 0.5; /* estado transitório do arrasto: não vale para o repouso, onde o contraste é medido */
+}
+
+.cartao[data-urgencia='vencido'] {
+  border-left-color: var(--vencido-borda);
+  background: var(--vencido-cartao);
+}
+
+.cartao[data-urgencia='hoje'] {
+  border-left-color: var(--hoje-borda);
+}
+
+.cartao[data-urgencia='perto'] {
+  border-left-color: var(--perto-borda);
+}
+
+.cartao[data-urgencia='alta'] {
+  border-left: 6px double var(--alta-borda);
+}
+
+.cartao-cabecalho {
   max-width: 100%;
   margin: 0;
   font-size: 0.95rem;
+}
+
+/* O título é um <button>: some o visual de botão, fica o de texto em negrito (foco visível vem do :focus-visible). */
+.cartao-titulo {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
   font-weight: 700;
+  text-align: left;
   overflow-wrap: anywhere; /* título de 100 caracteres sem espaço não gera rolagem horizontal */
+}
+
+.cartao-titulo:hover {
+  text-decoration: underline;
 }
 
 .prazo {
@@ -197,12 +345,70 @@ button {
   color: var(--texto-suave);
 }
 
+.cartao-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cartao-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* Menu "Mover para…": a lista abre em fluxo, dentro do cartão. Absoluta seria cortada pela rolagem da coluna. */
+.menu-mover {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.menu-mover-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--superficie);
+  border: 1px solid var(--borda-controle);
+  border-radius: var(--raio);
+}
+
+.menu-mover-lista button {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--roxo-escuro);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.menu-mover-lista button:hover {
+  background: var(--roxo-fundo);
+}
+
+/* Selos: ícone + texto sempre (a cor nunca é o único sinal). Prioridade = retângulo; prazo = pílula. */
 .selo {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.selo-prioridade {
+  border-radius: 4px;
+}
+
+.selo-prazo {
+  border-radius: 999px;
 }
 
 .selo-alta {
@@ -220,6 +426,47 @@ button {
   color: var(--baixa-texto);
 }
 
+.selo-vencido {
+  background: var(--vencido-fundo);
+  color: var(--vencido-texto);
+  border-color: var(--vencido-borda);
+}
+
+.selo-hoje {
+  background: var(--hoje-fundo);
+  color: var(--hoje-texto);
+}
+
+.selo-perto {
+  background: var(--perto-fundo);
+  color: var(--perto-texto);
+}
+
+.selo-no-prazo {
+  background: var(--no-prazo-fundo);
+  color: var(--no-prazo-texto);
+}
+
+/* Concluído e Abandonado: neutros, sem borda de urgência, mas legíveis (cores, não opacity). */
+.cartao[data-status='CONCLUIDO'],
+.cartao[data-status='ABANDONADO'] {
+  background: var(--neutro-fundo);
+  color: var(--neutro-texto);
+  box-shadow: none;
+  outline: 1px solid var(--linha);
+}
+
+.cartao[data-status='CONCLUIDO'] .selo,
+.cartao[data-status='ABANDONADO'] .selo {
+  background: var(--neutro-selo-fundo);
+  color: var(--neutro-texto);
+}
+
+.cartao[data-status='CONCLUIDO'] .prazo,
+.cartao[data-status='ABANDONADO'] .prazo {
+  color: var(--neutro-texto);
+}
+
 /* Erro ao carregar */
 .erro {
   display: flex;
@@ -228,14 +475,44 @@ button {
   gap: 12px;
   margin-bottom: 18px;
   padding: 12px 16px;
-  background: #fff1f0;
-  border: 1px solid #f3b8b3;
+  background: var(--erro-fundo);
+  border: 1px solid var(--erro-borda);
+  border-left-width: 6px;
   border-radius: var(--raio);
-  color: var(--perigo);
+  color: var(--erro-texto);
 }
 
 .erro p {
   margin: 0;
+  font-weight: 600;
+}
+
+/* Aviso de erro ao mover/editar (role=alert, criado uma vez fora do quadro): faixa fixa no rodapé. */
+.aviso {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 100;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  padding: 12px 16px;
+  background: var(--erro-fundo);
+  border: 1px solid var(--erro-borda);
+  border-left-width: 6px;
+  border-radius: var(--raio);
+  box-shadow: 0 6px 24px rgb(31 35 64 / 25%);
+  color: var(--erro-texto);
+  font-weight: 600;
+}
+
+.aviso:empty {
+  display: none;
+}
+
+/* O atributo hidden sempre vence o display das classes (ex.: .campo {display:grid} ignorava o hidden). */
+[hidden] {
+  display: none !important;
 }
 
 /* Diálogo de cadastro */
@@ -278,7 +555,7 @@ button {
   font: inherit;
   color: var(--texto);
   background: var(--superficie);
-  border: 1px solid #8a90a8; /* 3,3:1 sobre branco (componente de formulário) */
+  border: 1px solid var(--borda-controle); /* componente de formulário: 3:1 ou mais sobre branco */
   border-radius: 6px;
 }
 
@@ -302,8 +579,24 @@ button {
 .erro-geral {
   margin-bottom: 12px;
   padding: 8px 10px;
-  background: #fff1f0;
+  background: var(--erro-fundo);
   border-radius: 6px;
+}
+
+/* Confirmação de exclusão (dentro do diálogo): distinta do formulário, na família visual do erro. */
+.confirmacao {
+  padding: 16px;
+  background: var(--erro-fundo);
+  border: 1px solid var(--erro-borda);
+  border-left-width: 6px;
+  border-radius: var(--raio);
+  color: var(--erro-texto);
+}
+
+.confirmacao-texto {
+  margin: 0 0 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .dialogo-acoes {
@@ -313,17 +606,32 @@ button {
   margin-top: 8px;
 }
 
-/* Telas estreitas (bônus): colunas empilhadas */
+/* Telas estreitas: as colunas deslizam na horizontal (uma e um pedaço da próxima à vista). */
 @media (max-width: 760px) {
   #app {
     padding: 14px 12px 32px;
   }
 
   .quadro {
-    grid-template-columns: minmax(0, 1fr);
+    grid-auto-columns: 84%;
+  }
+
+  .cabecalho {
+    flex-wrap: wrap;
   }
 
   h1 {
     font-size: 1.25rem;
+  }
+}
+
+/* Sem animação obrigatória: a única transição (cor de fundo de botão) é desligada. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
   }
 }

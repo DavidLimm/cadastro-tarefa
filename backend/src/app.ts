@@ -1,5 +1,5 @@
-import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
-import { PRIORIDADES, validarNovaTarefa, type ErroCampo, type Tarefa } from '../../shared/contrato.js';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { PRIORIDADES, validarAtualizacao, validarNovaTarefa, type ErroCampo, type Tarefa } from '../../shared/contrato.js';
 import { TarefaRepositorioMemoria, type TarefaRepositorio } from './repositorio.js';
 
 export interface OpcoesApp {
@@ -37,10 +37,19 @@ function detalheDeCorpo(erro: Error): string {
   }
 }
 
+// Só inteiros positivos em texto puro ('abc', '1.5', '0', '-1', '01' não são ids).
+function idDaRota(parametros: unknown): number | undefined {
+  const texto = typeof parametros === 'object' && parametros !== null && 'id' in parametros ? parametros.id : undefined;
+  return typeof texto === 'string' && /^[1-9]\d*$/.test(texto) && Number.isSafeInteger(Number(texto)) ? Number(texto) : undefined;
+}
+
 export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
   const repositorio = opcoes.repositorio ?? new TarefaRepositorioMemoria();
   const agora = opcoes.agora ?? (() => new Date());
   const app = Fastify();
+  // O Fastify aceita text/plain por padrão e entregaria uma string à validação (mensagem enganosa).
+  // Sem o parser, qualquer tipo que não seja JSON cai em FST_ERR_CTP_INVALID_MEDIA_TYPE.
+  app.removeContentTypeParser('text/plain');
 
   // Qualquer falha de corpo (JSON quebrado, vazio, content-type errado) vira 400 problem+json.
   app.setErrorHandler((erro, _requisicao, resposta) => {
@@ -64,6 +73,30 @@ export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
     }
     const tarefa = repositorio.salvar(resultado.valor);
     return resposta.code(201).header('Location', `/api/tarefas/${tarefa.id}`).send(tarefa);
+  });
+
+  // 404 antes de qualquer outra coisa (ADR 0009): onRequest roda antes de o corpo ser lido/validado.
+  const exigirTarefa = async (requisicao: FastifyRequest, resposta: FastifyReply) => {
+    const id = idDaRota(requisicao.params);
+    if (id === undefined || repositorio.obter(id) === undefined) {
+      return problema(resposta, 404, 'Tarefa não encontrada');
+    }
+  };
+
+  app.patch('/api/tarefas/:id', { onRequest: exigirTarefa }, async (requisicao, resposta) => {
+    const id = idDaRota(requisicao.params);
+    const atual = id === undefined ? undefined : repositorio.obter(id);
+    if (id === undefined || atual === undefined) return problema(resposta, 404, 'Tarefa não encontrada');
+    const resultado = validarAtualizacao(requisicao.body, atual, agora());
+    if (!resultado.ok) return problema(resposta, 400, 'Dados inválidos', resultado.erros);
+    return repositorio.atualizar(id, resultado.valor);
+  });
+
+  // Sem corpo e sem Content-Type (Fastify rejeita JSON vazio). O 404 já saiu no onRequest.
+  app.delete('/api/tarefas/:id', { onRequest: exigirTarefa }, async (requisicao, resposta) => {
+    const id = idDaRota(requisicao.params);
+    if (id === undefined || !repositorio.excluir(id)) return problema(resposta, 404, 'Tarefa não encontrada');
+    return resposta.code(204).send();
   });
 
   app.get('/api/tarefas', async () => repositorio.listar().sort(compararTarefas));

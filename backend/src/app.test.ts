@@ -33,7 +33,7 @@ describe('POST /api/tarefas', () => {
     const { app, resposta } = await postar({ ...valida, titulo: '  Pagar conta  ' });
     expect(resposta.statusCode).toBe(201);
     expect(resposta.headers.location).toBe('/api/tarefas/1');
-    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20' });
+    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20', status: 'IDEALIZADO' });
     await app.close();
   });
 
@@ -129,9 +129,9 @@ describe('POST /api/tarefas', () => {
   });
 
   it('campos extras são ignorados', async () => {
-    const { app, resposta } = await postar({ ...valida, id: 99, admin: true });
+    const { app, resposta } = await postar({ ...valida, id: 99, admin: true, status: 'CONCLUIDO' });
     expect(resposta.statusCode).toBe(201);
-    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20' });
+    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20', status: 'IDEALIZADO' });
     await app.close();
   });
 
@@ -241,6 +241,278 @@ describe('rotas inexistentes e erros de corpo', () => {
     });
     expect(resposta.statusCode).toBe(400);
     expect(resposta.json().detail).toBe('O corpo da requisição é grande demais.');
+    await app.close();
+  });
+});
+
+describe('PATCH /api/tarefas/:id', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const JSON_H = { 'content-type': 'application/json' };
+
+  async function criar(app: ReturnType<typeof criarApp>, prazo = '2030-06-20', titulo = 'Pagar conta') {
+    const r = await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify({ titulo, prioridade: 'MEDIA', prazo }), headers: JSON_H });
+    return r.json() as { id: number; titulo: string; prioridade: string; prazo: string; status: string };
+  }
+  // Tarefa vencida: criada com relógio no passado, depois lida por um app com relógio de 2030 (mesmo repositório).
+  async function appComVencida() {
+    const repositorio = new TarefaRepositorioMemoria();
+    const antigo = criarApp({ repositorio, agora: () => new Date(2030, 0, 1) });
+    const t = await criar(antigo, '2030-01-10');
+    await antigo.close();
+    return { app: criarApp({ repositorio, agora }), t };
+  }
+  const patch = (app: ReturnType<typeof criarApp>, id: number | string, corpo: unknown) =>
+    app.inject({ method: 'PATCH', url: `/api/tarefas/${id}`, payload: JSON.stringify(corpo), headers: JSON_H });
+
+  it('só {status} -> 200 com a tarefa completa e demais campos intactos', async () => {
+    const app = criarApp({ agora });
+    const t = await criar(app);
+    const r = await patch(app, t.id, { status: 'FAZENDO' });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual({ ...t, status: 'FAZENDO' });
+    await app.close();
+  });
+
+  it('todos os campos -> 200 atualizado e título aparado; GET reflete', async () => {
+    const app = criarApp({ agora });
+    const t = await criar(app);
+    const r = await patch(app, t.id, { titulo: '  Novo  ', prioridade: 'ALTA', prazo: '2030-06-15', status: 'CONCLUIDO' });
+    const esperado = { id: t.id, titulo: 'Novo', prioridade: 'ALTA', prazo: '2030-06-15', status: 'CONCLUIDO' };
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual(esperado);
+    expect((await app.inject({ method: 'GET', url: '/api/tarefas' })).json()).toEqual([esperado]);
+    await app.close();
+  });
+
+  it.each([
+    ['titulo', { titulo: '   ' }],
+    ['titulo', { titulo: 'a'.repeat(101) }],
+    ['prioridade', { prioridade: 'URGENTE' }],
+    ['status', { status: 'FEITO' }],
+    ['prazo', { prazo: '2030-02-30' }],
+    ['prazo', { prazo: '20/06/2030' }],
+  ])('inválido (%s) -> 400 problem+json com errors por campo e tarefa intacta', async (campo, corpo) => {
+    const app = criarApp({ agora });
+    const t = await criar(app);
+    const r = await patch(app, t.id, corpo);
+    expect(r.statusCode).toBe(400);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(r.json().errors.map((e: { campo: string }) => e.campo)).toEqual([campo]);
+    expect((await app.inject({ method: 'GET', url: '/api/tarefas' })).json()).toEqual([t]);
+    await app.close();
+  });
+
+  it('título com 100 caracteres é aceito', async () => {
+    const app = criarApp({ agora });
+    const t = await criar(app);
+    expect((await patch(app, t.id, { titulo: 'a'.repeat(100) })).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it('tarefa vencida: mover para ABANDONADO e CONCLUIDO funciona', async () => {
+    const { app, t } = await appComVencida();
+    const r = await patch(app, t.id, { status: 'ABANDONADO' });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ status: 'ABANDONADO', prazo: '2030-01-10' });
+    expect((await patch(app, t.id, { status: 'CONCLUIDO' })).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it('prazo vencido: o mesmo é aceito, outro vencido -> 400 em prazo, hoje e futuro -> 200', async () => {
+    const { app, t } = await appComVencida();
+    expect((await patch(app, t.id, { prazo: '2030-01-10' })).statusCode).toBe(200);
+    const ruim = await patch(app, t.id, { prazo: '2030-01-11' });
+    expect(ruim.statusCode).toBe(400);
+    expect(ruim.json().errors.map((e: { campo: string }) => e.campo)).toEqual(['prazo']);
+    expect((await patch(app, t.id, { prazo: '2030-06-15' })).statusCode).toBe(200);
+    expect((await patch(app, t.id, { prazo: '2030-07-01' })).statusCode).toBe(200);
+    await app.close();
+  });
+
+  it.each([[{}], [{ foo: 1 }], [[]], [null]])('corpo %j sem campos conhecidos -> 400', async (corpo) => {
+    const app = criarApp({ agora });
+    const t = await criar(app);
+    expect((await patch(app, t.id, corpo)).statusCode).toBe(400);
+    await app.close();
+  });
+
+  it('corpo ausente (sem content-type) e corpo não JSON -> 400 problem+json', async () => {
+    const app = criarApp({ agora });
+    const t = await criar(app);
+    const ausente = await app.inject({ method: 'PATCH', url: `/api/tarefas/${t.id}` });
+    expect(ausente.statusCode).toBe(400);
+    expect(ausente.headers['content-type']).toContain('application/problem+json');
+    const quebrado = await app.inject({ method: 'PATCH', url: `/api/tarefas/${t.id}`, payload: '{quebrado', headers: JSON_H });
+    expect(quebrado.statusCode).toBe(400);
+    expect(quebrado.json().detail).toBe('O corpo da requisição não é um JSON válido.');
+    const vazio = await app.inject({ method: 'PATCH', url: `/api/tarefas/${t.id}`, payload: '', headers: JSON_H });
+    expect(vazio.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it.each(['99', 'abc', '1.5', '0', '-1'])('id %s inexistente/inválido -> 404 problem+json', async (id) => {
+    const app = criarApp({ agora });
+    await criar(app);
+    const r = await patch(app, id, { status: 'FAZENDO' });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(r.json()).toMatchObject({ status: 404, errors: [] });
+    await app.close();
+  });
+
+  it('404 vem antes de 400: id inexistente com corpo inválido, vazio ou quebrado', async () => {
+    const app = criarApp({ agora });
+    expect((await patch(app, 99, { titulo: '' })).statusCode).toBe(404);
+    expect((await patch(app, 99, {})).statusCode).toBe(404);
+    expect((await app.inject({ method: 'PATCH', url: '/api/tarefas/99', payload: '{quebrado', headers: JSON_H })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'PATCH', url: '/api/tarefas/99' })).statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('a posição no GET reflete o novo prazo e prioridade', async () => {
+    const app = criarApp({ agora });
+    const a = await criar(app, '2030-06-20', 'A');
+    const b = await criar(app, '2030-06-25', 'B');
+    await patch(app, b.id, { prazo: '2030-06-16' });
+    const ids = (await app.inject({ method: 'GET', url: '/api/tarefas' })).json().map((x: { id: number }) => x.id);
+    expect(ids).toEqual([b.id, a.id]);
+    await app.close();
+  });
+});
+
+describe('DELETE /api/tarefas/:id', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const JSON_H = { 'content-type': 'application/json' };
+  const criar = async (app: ReturnType<typeof criarApp>, titulo: string) =>
+    (await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify({ titulo, prioridade: 'MEDIA', prazo: '2030-06-20' }), headers: JSON_H })).json() as { id: number };
+  const listar = async (app: ReturnType<typeof criarApp>) => (await app.inject({ method: 'GET', url: '/api/tarefas' })).json() as { id: number }[];
+
+  it('id existente -> 204 sem corpo (e sem Content-Type na requisição) e some do GET', async () => {
+    const app = criarApp({ agora });
+    const a = await criar(app, 'A');
+    const b = await criar(app, 'B');
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${a.id}` });
+    expect(r.statusCode).toBe(204);
+    expect(r.body).toBe('');
+    expect((await listar(app)).map((t) => t.id)).toEqual([b.id]);
+    await app.close();
+  });
+
+  it('segundo DELETE do mesmo id -> 404 problem+json', async () => {
+    const app = criarApp({ agora });
+    const a = await criar(app, 'A');
+    await app.inject({ method: 'DELETE', url: `/api/tarefas/${a.id}` });
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${a.id}` });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    await app.close();
+  });
+
+  it.each(['99', 'abc', '1.5', '0', '-1'])('id %s -> 404 problem+json', async (id) => {
+    const app = criarApp({ agora });
+    await criar(app, 'A');
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${id}` });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(await listar(app)).toHaveLength(1);
+    await app.close();
+  });
+
+  it('id não reaproveitado: criar depois de excluir (inclusive o último) gera id novo', async () => {
+    const app = criarApp({ agora });
+    await criar(app, 'A');
+    const b = await criar(app, 'B');
+    await app.inject({ method: 'DELETE', url: `/api/tarefas/${b.id}` });
+    expect((await criar(app, 'C')).id).toBe(3);
+    await app.close();
+  });
+});
+
+describe('id de rota estrito (R-03/R-04) com tarefa 1 existente', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const JSON_H = { 'content-type': 'application/json' };
+  const nova = { titulo: 'Original', prioridade: 'MEDIA', prazo: '2030-06-20' };
+  const comTarefa = async () => {
+    const app = criarApp({ agora });
+    const criada = (await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify(nova), headers: JSON_H })).json() as { id: number };
+    expect(criada.id).toBe(1);
+    const lista = async () => (await app.inject({ method: 'GET', url: '/api/tarefas' })).json();
+    return { app, antes: await lista(), lista };
+  };
+  const IDS_PARECIDOS_COM_1 = ['01', '+1', '%201', '0x1', '1e0', '1.0', '1abc'];
+
+  it.each(IDS_PARECIDOS_COM_1)('PATCH id %s -> 404 e a tarefa 1 continua intacta', async (id) => {
+    const { app, antes, lista } = await comTarefa();
+    const r = await app.inject({ method: 'PATCH', url: `/api/tarefas/${id}`, payload: JSON.stringify({ status: 'FAZENDO', titulo: 'Alterada' }), headers: JSON_H });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(await lista()).toEqual(antes);
+    await app.close();
+  });
+
+  it.each(IDS_PARECIDOS_COM_1)('DELETE id %s -> 404 e a tarefa 1 continua existindo', async (id) => {
+    const { app, antes, lista } = await comTarefa();
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${id}` });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(await lista()).toEqual(antes);
+    await app.close();
+  });
+
+  it.each(['9007199254740993', '1e2'])('PATCH e DELETE com id %s -> 404', async (id) => {
+    const { app } = await comTarefa();
+    expect((await app.inject({ method: 'PATCH', url: `/api/tarefas/${id}`, payload: JSON.stringify({ status: 'FAZENDO' }), headers: JSON_H })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'DELETE', url: `/api/tarefas/${id}` })).statusCode).toBe(404);
+    await app.close();
+  });
+});
+
+describe('DELETE e Content-Type (ADR 0009)', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const JSON_H = { 'content-type': 'application/json' };
+  const criar = async (app: ReturnType<typeof criarApp>) =>
+    app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify({ titulo: 'A', prioridade: 'MEDIA', prazo: '2030-06-20' }), headers: JSON_H });
+
+  it.each([['vazio', ''], ['quebrado', '{quebrado']])('id inexistente com content-type json e corpo %s -> 404 (não 400)', async (_nome, payload) => {
+    const app = criarApp({ agora });
+    const r = await app.inject({ method: 'DELETE', url: '/api/tarefas/99', payload, headers: JSON_H });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    await app.close();
+  });
+
+  // Documenta para o front: no DELETE NÃO enviar Content-Type (o Fastify rejeita JSON com corpo vazio).
+  it('tarefa existente: com content-type json e corpo vazio -> 400; sem content-type -> 204', async () => {
+    const app = criarApp({ agora });
+    await criar(app);
+    const com = await app.inject({ method: 'DELETE', url: '/api/tarefas/1', headers: JSON_H });
+    expect(com.statusCode).toBe(400);
+    expect(com.headers['content-type']).toContain('application/problem+json');
+    const sem = await app.inject({ method: 'DELETE', url: '/api/tarefas/1' });
+    expect(sem.statusCode).toBe(204);
+    await app.close();
+  });
+});
+
+describe('content-type errado nas rotas com corpo', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const TEXTO = { 'content-type': 'text/plain' };
+
+  it('PATCH com text/plain -> 400 com detail de tipo de conteúdo', async () => {
+    const app = criarApp({ agora });
+    await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify({ titulo: 'A', prioridade: 'MEDIA', prazo: '2030-06-20' }), headers: { 'content-type': 'application/json' } });
+    const r = await app.inject({ method: 'PATCH', url: '/api/tarefas/1', payload: JSON.stringify({ status: 'FAZENDO' }), headers: TEXTO });
+    expect(r.statusCode).toBe(400);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(r.json().detail).toBe('O tipo de conteúdo deve ser application/json.');
+    await app.close();
+  });
+
+  it('POST com text/plain -> 400 com detail de tipo de conteúdo', async () => {
+    const app = criarApp({ agora });
+    const r = await app.inject({ method: 'POST', url: '/api/tarefas', payload: '{}', headers: TEXTO });
+    expect(r.statusCode).toBe(400);
+    expect(r.json().detail).toBe('O tipo de conteúdo deve ser application/json.');
     await app.close();
   });
 });

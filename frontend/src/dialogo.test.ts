@@ -18,12 +18,26 @@ beforeEach(() => {
 });
 
 const HOJE = new Date(2030, 5, 15, 23, 30); // 15/06/2030 23:30 local
-const criada: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2030-06-20' };
+const criada: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2030-06-20', status: 'IDEALIZADO' };
 
 function montar(resp: ResultadoCriacao | Promise<ResultadoCriacao> = { ok: true, tarefa: criada }) {
   const criarTarefa = vi.fn<(n: NovaTarefa) => Promise<ResultadoCriacao>>(async () => resp);
   const aoSalvo = vi.fn();
-  const d = criarDialogo(document, { criarTarefa, aoSalvo, hoje: () => HOJE });
+  // O modo criar não usa atualizar/excluir: se algum for chamado, o teste deve falhar.
+  const atualizarTarefa = vi.fn(async (): Promise<never> => {
+    throw new Error('atualizarTarefa não deveria ser chamada ao criar');
+  });
+  const excluirTarefa = vi.fn(async (): Promise<never> => {
+    throw new Error('excluirTarefa não deveria ser chamada ao criar');
+  });
+  const d = criarDialogo(document, {
+    criarTarefa,
+    atualizarTarefa,
+    excluirTarefa,
+    aoSalvo,
+    aoAlterado: vi.fn(),
+    hoje: () => HOJE,
+  });
   document.body.append(d.elemento);
   d.abrir();
   return { d, criarTarefa, aoSalvo };

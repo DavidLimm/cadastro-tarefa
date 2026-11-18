@@ -1,5 +1,8 @@
-import type { Prioridade, Tarefa } from '../../shared/contrato.js';
-import { TITULO_PAGINA, prioridadesDaTela } from './inicio.js';
+import type { Status, Tarefa } from '../../shared/contrato.js';
+import { diaLocal } from '../../shared/prazo.js';
+import { criarMenuMover, descreverCartao, type Selo } from './cartao.js';
+import { criarIcone } from './icones.js';
+import { ROTULOS_STATUS, TITULO_PAGINA, statusDaTela } from './inicio.js';
 
 export type EstadoQuadro =
   | { tipo: 'carregando' }
@@ -10,9 +13,13 @@ export interface AcoesQuadro {
   aoRecarregar: () => void;
   /** Gancho da T-09: abrir o diálogo de cadastro. Sem ação até lá. */
   aoAdicionar?: () => void;
+  /** Abrir o diálogo de edição do cartão (clique no título ou em área vazia do cartão). */
+  aoEditar?: (id: number) => void;
+  /** Único ponto de saída para mudar o status: menu, atalho "Mover para Abandonado" e soltar um cartão numa coluna. */
+  aoMover?: (id: number, status: Status) => void;
+  /** Relógio injetável (testes). Padrão: a hora do navegador; o "hoje" dos selos é a data local. */
+  hoje?: () => Date;
 }
-
-const ROTULOS: Record<Prioridade, string> = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' };
 
 /** AAAA-MM-DD -> dd/mm/aaaa por texto (Date/UTC deslocaria o dia no fuso do Brasil). */
 export function formatarPrazo(prazo: string): string {
@@ -40,24 +47,114 @@ function botao(doc: Document, texto: string, classe: string, foco: string, aoCli
   return b;
 }
 
-function cartao(doc: Document, tarefa: Tarefa): HTMLElement {
+function contagem(doc: Document, n: number): Node[] {
+  // O número visual fica fora do nome acessível; o leitor de tela lê "5 tarefas" (singular: "1 tarefa").
+  const visual = el(doc, 'span', 'contador', String(n));
+  visual.setAttribute('aria-hidden', 'true');
+  return [visual, el(doc, 'span', 'so-leitor', `${n} ${n === 1 ? 'tarefa' : 'tarefas'}`)];
+}
+
+function selo(doc: Document, tipo: 'prioridade' | 'prazo', s: Selo<string>): HTMLElement {
+  const e = el(doc, 'span', `selo selo-${tipo} selo-${s.tom}`);
+  e.append(criarIcone(doc, s.icone), el(doc, 'span', 'selo-texto', s.texto));
+  return e;
+}
+
+// Arrastar e soltar nativo (ADR 0008). O cartão em arrasto vive numa variável do módulo porque `getData`
+// não é legível em `dragover`; o `dataTransfer` só é preenchido por exigência do Firefox.
+let arrastado: { id: number; origem: Status } | undefined;
+// Profundidade de dragenter/dragleave por coluna: entrar num filho dispara dragleave no pai, e sem contar a marca piscaria.
+const profundidade = new WeakMap<HTMLElement, number>();
+const ATRIBUTO_ALVO = 'data-alvo-arrasto'; // o visual (borda tracejada) é do estilo.css
+const ATRIBUTO_ARRASTANDO = 'data-arrastando'; // idem: cartão esmaecido enquanto é arrastado
+
+function limparArrasto(raiz: ParentNode): void {
+  arrastado = undefined;
+  for (const col of raiz.querySelectorAll<HTMLElement>(`[${ATRIBUTO_ALVO}]`)) col.removeAttribute(ATRIBUTO_ALVO);
+  for (const col of raiz.querySelectorAll<HTMLElement>('.coluna')) profundidade.delete(col);
+  for (const c of raiz.querySelectorAll<HTMLElement>(`[${ATRIBUTO_ARRASTANDO}]`)) c.removeAttribute(ATRIBUTO_ARRASTANDO);
+}
+
+function cartao(doc: Document, tarefa: Tarefa, hoje: string, acoes: AcoesQuadro): HTMLElement {
+  const d = descreverCartao(tarefa, hoje);
   const c = el(doc, 'article', 'cartao');
-  c.append(
-    el(doc, 'h3', 'cartao-titulo', tarefa.titulo),
-    el(doc, 'span', `selo selo-${tarefa.prioridade.toLowerCase()}`, ROTULOS[tarefa.prioridade]),
-    el(doc, 'p', 'prazo', `Prazo: ${formatarPrazo(tarefa.prazo)}`),
-  );
+  c.dataset.id = String(tarefa.id);
+  c.dataset.status = tarefa.status;
+  c.dataset.urgencia = d.urgencia; // o CSS (T-12) pinta a borda esquerda a partir daqui
+  c.draggable = true;
+  c.addEventListener('dragstart', (ev) => {
+    if (ev.target !== c) return; // arrastar texto selecionado dentro do cartão não é arrastar o cartão
+    arrastado = { id: tarefa.id, origem: tarefa.status };
+    const dt = (ev as DragEvent).dataTransfer;
+    if (dt) {
+      dt.setData('text/plain', String(tarefa.id));
+      dt.effectAllowed = 'move';
+    }
+    // Só depois do instantâneo que o navegador tira no dragstart; marcar já esmaeceria também a imagem arrastada.
+    setTimeout(() => {
+      if (arrastado?.id === tarefa.id) c.setAttribute(ATRIBUTO_ARRASTANDO, '');
+    }, 0);
+  });
+  c.addEventListener('dragend', () => limparArrasto(c.ownerDocument));
+  const editar = () => acoes.aoEditar?.(tarefa.id);
+  const titulo = botao(doc, tarefa.titulo, 'cartao-titulo', `cartao-${tarefa.id}`, editar);
+  // Área vazia do cartão também abre a edição; cliques em botões (título, sugestão) têm ação própria.
+  c.addEventListener('click', (ev) => {
+    if (!(ev.target instanceof Element) || ev.target.closest('button') === null) editar();
+  });
+  const selos = el(doc, 'div', 'cartao-selos');
+  selos.append(selo(doc, 'prioridade', d.prioridade));
+  if (d.prazo) selos.append(selo(doc, 'prazo', d.prazo));
+  const h3 = el(doc, 'h3', 'cartao-cabecalho');
+  h3.append(titulo);
+  c.append(h3, selos, el(doc, 'p', 'prazo', `Prazo: ${formatarPrazo(tarefa.prazo)}`));
+  const rodape = el(doc, 'div', 'cartao-acoes');
+  rodape.append(criarMenuMover(doc, tarefa, acoes.aoMover));
+  // Sugestão, nunca ação automática: só move quando o usuário clica.
+  if (d.sugerirAbandono) {
+    rodape.append(
+      botao(doc, 'Mover para Abandonado', 'botao-abandonar', `abandonar-${tarefa.id}`, () =>
+        acoes.aoMover?.(tarefa.id, 'ABANDONADO'),
+      ),
+    );
+  }
+  c.append(rodape);
   return c;
 }
 
-function coluna(doc: Document, prioridade: Prioridade, tarefas: Tarefa[]): HTMLElement {
+function coluna(doc: Document, status: Status, tarefas: Tarefa[], hoje: string, acoes: AcoesQuadro): HTMLElement {
   const sec = el(doc, 'section', 'coluna');
-  sec.dataset.prioridade = prioridade;
+  sec.dataset.status = status;
+  // Alvo válido: há cartão arrastado e a coluna não é a de origem (soltar onde já está não faz nada).
+  const aceita = () => arrastado !== undefined && arrastado.origem !== status;
+  sec.addEventListener('dragenter', () => {
+    if (!aceita()) return;
+    profundidade.set(sec, (profundidade.get(sec) ?? 0) + 1);
+    sec.setAttribute(ATRIBUTO_ALVO, '');
+  });
+  sec.addEventListener('dragover', (ev) => {
+    if (aceita()) ev.preventDefault(); // sem isso o navegador não permite soltar aqui
+  });
+  sec.addEventListener('dragleave', () => {
+    const n = (profundidade.get(sec) ?? 0) - 1;
+    profundidade.set(sec, Math.max(n, 0));
+    if (n <= 0) sec.removeAttribute(ATRIBUTO_ALVO);
+  });
+  sec.addEventListener('drop', (ev) => {
+    const atual = arrastado;
+    if (!atual) return; // texto/arquivo arrastado de fora: ignora e deixa o navegador agir
+    ev.preventDefault();
+    limparArrasto(sec.ownerDocument);
+    if (atual.origem !== status) acoes.aoMover?.(atual.id, status);
+  });
   const cab = el(doc, 'header', 'coluna-cabecalho');
-  cab.append(el(doc, 'h2', undefined, ROTULOS[prioridade]), el(doc, 'span', 'contador', String(tarefas.length)));
-  sec.append(cab);
-  if (tarefas.length === 0) sec.append(el(doc, 'p', 'vazio', 'Nenhuma tarefa'));
-  for (const t of tarefas) sec.append(cartao(doc, t));
+  const h2 = el(doc, 'h2');
+  h2.append(el(doc, 'span', 'coluna-nome', ROTULOS_STATUS[status]), ' ', ...contagem(doc, tarefas.length));
+  cab.append(h2);
+  const lista = el(doc, 'div', 'coluna-cartoes'); // a rolagem vertical é desta lista (CSS na T-12)
+  if (tarefas.length === 0) lista.append(el(doc, 'p', 'vazio', 'Nenhuma tarefa'));
+  for (const t of tarefas) lista.append(cartao(doc, t, hoje, acoes));
+  sec.append(cab, lista);
   return sec;
 }
 
@@ -65,10 +162,7 @@ function cabecalho(doc: Document, total: number | undefined, acoes: AcoesQuadro)
   const cab = el(doc, 'header', 'cabecalho');
   const h1 = el(doc, 'h1', undefined, TITULO_PAGINA);
   if (total !== undefined) {
-    // O número visual fica fora do nome acessível; o leitor de tela lê "5 tarefas" (singular: "1 tarefa").
-    const contador = el(doc, 'span', 'contador', String(total));
-    contador.setAttribute('aria-hidden', 'true');
-    h1.append(' ', contador, el(doc, 'span', 'so-leitor', `${total} ${total === 1 ? 'tarefa' : 'tarefas'}`));
+    h1.append(' ', ...contagem(doc, total));
   }
   cab.append(h1, botao(doc, 'Adicionar tarefa', 'botao-primario', 'adicionar', acoes.aoAdicionar));
   return cab;
@@ -79,6 +173,35 @@ export function pedirFoco(raiz: HTMLElement, id: string): void {
   raiz.dataset.focoPendente = id;
 }
 
+// Rolagem do quadro por raiz. Guardada quando há quadro na tela e mantida durante erro/carregando,
+// para que "Tentar de novo" também volte à mesma posição (spec, suposição 9).
+interface Rolagem {
+  esquerda: number;
+  colunas: Map<string, number>;
+}
+const rolagens = new WeakMap<HTMLElement, Rolagem>();
+const SELETOR_LISTA = '.coluna[data-status] > .coluna-cartoes';
+
+function guardarRolagem(raiz: HTMLElement): void {
+  const quadro = raiz.querySelector<HTMLElement>('.quadro');
+  if (!quadro) return;
+  const colunas = new Map<string, number>();
+  for (const lista of raiz.querySelectorAll<HTMLElement>(SELETOR_LISTA)) {
+    colunas.set(lista.parentElement?.dataset.status ?? '', lista.scrollTop);
+  }
+  rolagens.set(raiz, { esquerda: quadro.scrollLeft, colunas });
+}
+
+function restaurarRolagem(raiz: HTMLElement): void {
+  const guardada = rolagens.get(raiz);
+  const quadro = raiz.querySelector<HTMLElement>('.quadro');
+  if (!guardada || !quadro) return;
+  quadro.scrollLeft = guardada.esquerda;
+  for (const lista of raiz.querySelectorAll<HTMLElement>(SELETOR_LISTA)) {
+    lista.scrollTop = guardada.colunas.get(lista.parentElement?.dataset.status ?? '') ?? 0;
+  }
+}
+
 /** Redesenha todo o quadro dentro de `raiz` conforme o estado. */
 export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes: AcoesQuadro): void {
   const doc = raiz.ownerDocument;
@@ -86,6 +209,7 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
   const ativo = doc.activeElement;
   const focoAtual = ativo instanceof HTMLElement && raiz.contains(ativo) ? ativo.dataset.foco : undefined;
   const alvo = raiz.dataset.focoPendente ?? focoAtual;
+  guardarRolagem(raiz);
   const filhos: HTMLElement[] = [];
 
   if (estado.tipo === 'carregando') {
@@ -103,12 +227,14 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
     filhos.push(cabecalho(doc, total, acoes));
     if (total === 0) filhos.push(el(doc, 'p', 'vazio-geral', 'Nenhuma tarefa cadastrada ainda.'));
     const quadro = el(doc, 'main', 'quadro');
-    for (const p of prioridadesDaTela()) {
-      quadro.append(coluna(doc, p, estado.tarefas.filter((t) => t.prioridade === p)));
+    const hoje = diaLocal((acoes.hoje ?? (() => new Date()))());
+    for (const status of statusDaTela()) {
+      quadro.append(coluna(doc, status, estado.tarefas.filter((t) => t.status === status), hoje, acoes));
     }
     filhos.push(quadro);
   }
   raiz.replaceChildren(...filhos);
+  restaurarRolagem(raiz);
 
   if (alvo === undefined) return;
   const novo = raiz.querySelector<HTMLElement>(`[data-foco="${alvo}"]`);

@@ -1,24 +1,23 @@
 # STATUS — cadastro-tarefas
 
 ## Para retomar
-- Tarefa atual: cadastro-tarefas-v1 — PRONTA, aguardando revisão do David (PR/branch).
-- Branch: `vigia/cadastro-tarefas-v1`   PR: — (sem remoto GitHub; ver Histórico)
-- Próximo passo: David revisa e decide merge na main. Se recusar, ele diz o motivo → `aprender-licao` → `dev` corrige → `qa`.
+- Tarefa atual: kanban-status-v2 — PR #1 ABERTO, aguardando revisão do David.
+- Branch: `vigia/kanban-status-v2`   PR: https://github.com/DavidLimm/cadastro-tarefa/pull/1 (v1 + v2 → main)
+- Próximo passo: David revisa o PR #1. Se aprovar, ele faz o merge (eu nunca faço). Se recusar, ele diz o motivo → `aprender-licao` → `dev` corrige → `qa` → atualizar o mesmo PR.
 - Bloqueios / perguntas em aberto: nenhum. Pendências conhecidas e aceitas:
-  - npm audit: 5 high só em devDeps (picomatch → vitest/vite); 0 em produção. Rever quando houver versão corrigida.
-  - 2 casts `{} as Record<...>` em frontend/src/dialogo.ts:52-53 (contra a convenção "sem as"; sem risco prático).
+  - npm audit: 0 vulnerabilidades hoje (18/11/2026); na v1 eram 5 high só em devDeps. Depende do banco de avisos; rodar de vez em quando.
+  - Casts reais restantes (benignos): `ev as DragEvent` em frontend/src/quadro.ts:88 e `as [number, number]` em frontend/src/contraste.pares.ts:95.
+  - Comentário desatualizado em frontend/src/app.ts (aoMover diz "e, na T-11, arrastar"; arrastar já existe).
   - Rota /api/saude é de teste de fumaça (removível).
-  - Texto do título do ADR 0004 ainda diz "ProblemDetail" (termo Spring); código monta RFC 9457 à mão.
-  - shared/.gitkeep é resíduo.
-  - Ideias v2: editar/excluir/concluir, banco (trocar TarefaRepositorio), filtros.
+  - Título do ADR 0004 ainda diz "ProblemDetail" (termo Spring); o código monta RFC 9457 à mão. shared/.gitkeep é resíduo.
+  - Arrastar não funciona por toque (usar menu "Mover para…"); só testado no Edge/Chromium; leitor de tela e Firefox/Safari não testados.
+  - O "hoje" da tela é o relógio do navegador; página aberta na virada do dia mostra selos antigos até a próxima ação.
+  - Ideias futuras: banco no lugar do repositório em memória, reordenação manual, busca/filtros, status configuráveis.
 
 ## Histórico (mais recente primeiro, 1 linha por evento)
-- 2026-11-18 — MAPA.md gerado; ADRs 0002–0005 aceitos; README ajustado conforme qa
-- 2026-11-18 — T-11 e ajustes finais aprovados pelo qa (053bd26, 7bfb05f); E2E de 13 passos passou
-- 2026-11-18 — T-09/T-10 aprovadas pelo qa (d995461, 0ec4959)
-- 2026-11-18 — T-07/T-08 aprovadas pelo qa (0eb0ea8, 99cd681)
-- 2026-11-18 — T-06 + ajustes do back aprovadas (e128bc5, 272741e)
-- 2026-11-18 — T-04/T-05 aprovadas (24ab544, aab288e); `criadaEm` removido da spec/ADR 0004
-- 2026-11-18 — T-02 (ajustes) e T-03 aprovadas (7baacc4, 32d7d6b); T-02 (326aede); T-01 (faa40b6)
-- 2026-11-18 — Spec revisada (back Java → TypeScript/Fastify, ADR 0005) e aprovada pelo David; commit 3609bdb
+- 2026-11-18 — Remoto conectado (github.com/DavidLimm/cadastro-tarefa, público); main remota sobrescrita com --force-with-lease a pedido do David (só tinha LICENSE MIT, preservada em 1f6cd47); PR #1 aberto
+- 2026-11-18 — v2 fechada: qa APROVADO (U-1 corrigido, roteiro de 28 passos, contraste AA recalculado); MAPA.md atualizado; README ajustado (bec2600)
+- 2026-11-18 — Spec da v2 aprovada pelo David; ADRs 0006–0010 aceitos; construção v2/T-01..T-13 com dev ⇄ qa
+- 2026-11-18 — v1 aprovada pelo qa (E2E de 13 passos); MAPA.md da v1; sem remoto GitHub
+- 2026-11-18 — Spec da v1 revisada (back Java → TypeScript/Fastify, ADR 0005) e aprovada pelo David
 - 2026-11-18 — Projeto criado; pedido: sistema básico de cadastro de tarefas (título, prioridade, prazo)

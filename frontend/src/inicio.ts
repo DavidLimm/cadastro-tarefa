@@ -1,8 +1,15 @@
-import { PRIORIDADES, type Prioridade } from '../../shared/contrato.js';
+import { STATUS, type Status } from '../../shared/contrato.js';
 
 export const TITULO_PAGINA = 'Tarefas';
 
-/** Ordem das colunas do quadro: da prioridade mais alta para a mais baixa. */
-export function prioridadesDaTela(): Prioridade[] {
-  return [...PRIORIDADES].reverse();
+export const ROTULOS_STATUS: Record<Status, string> = {
+  IDEALIZADO: 'Idealizado',
+  FAZENDO: 'Fazendo',
+  CONCLUIDO: 'Concluído',
+  ABANDONADO: 'Abandonado',
+};
+
+/** Ordem das colunas do quadro: a ordem de STATUS em shared/contrato. */
+export function statusDaTela(): Status[] {
+  return [...STATUS];
 }

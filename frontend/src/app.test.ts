@@ -16,7 +16,7 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="app"></div>';
 });
 
-const nova: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2999-12-31' };
+const nova: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2999-12-31', status: 'IDEALIZADO' };
 const esperar = () => new Promise((r) => setTimeout(r, 0));
 
 describe('iniciar: ligação entre quadro, diálogo e API', () => {
@@ -28,7 +28,14 @@ describe('iniciar: ligação entre quadro, diálogo e API', () => {
       tarefas = [nova];
       return { ok: true, tarefa: nova };
     });
-    iniciar(raiz, document, { listarTarefas, criarTarefa });
+    // Este teste é do fluxo de criação: editar/excluir ficam sem uso.
+    const atualizarTarefa = vi.fn(async (): Promise<never> => {
+      throw new Error('não deveria ser chamada');
+    });
+    const excluirTarefa = vi.fn(async (): Promise<never> => {
+      throw new Error('não deveria ser chamada');
+    });
+    iniciar(raiz, document, { listarTarefas, criarTarefa, atualizarTarefa, excluirTarefa });
     await esperar();
 
     raiz.querySelector<HTMLButtonElement>('[data-foco="adicionar"]')!.click();
