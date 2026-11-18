@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Prioridade, Status, Tarefa } from '../../shared/contrato.js';
 import { formatarPrazo, pedirFoco, renderizarQuadro, type EstadoQuadro } from './quadro.js';
 
@@ -489,5 +489,143 @@ describe('atalho "Mover para Abandonado"', () => {
     });
     expect(atalho(1)).toBeNull();
     expect(atalho(2)).toBeNull();
+  });
+});
+
+describe('arrastar e soltar (HTML5 nativo, eventos sintéticos)', () => {
+  // jsdom não tem DragEvent: usa Event comum + dataTransfer falso. O id arrastado NÃO vem do getData.
+  function evento(tipo: string): Event {
+    const ev = new Event(tipo, { bubbles: true, cancelable: true });
+    const dataTransfer = { setData: vi.fn(), getData: () => '', effectAllowed: '', dropEffect: '' };
+    Object.defineProperty(ev, 'dataTransfer', { value: dataTransfer });
+    return ev;
+  }
+  const cart = (id: number) => raiz.querySelector<HTMLElement>(`.cartao[data-id="${id}"]`)!;
+  const dispara = (alvo: Element, tipo: string) => {
+    const ev = evento(tipo);
+    alvo.dispatchEvent(ev);
+    return ev;
+  };
+  const marcada = (status: string) => coluna(status).hasAttribute('data-alvo-arrasto');
+  // O id arrastado vive no módulo: encerra qualquer arrasto deixado pelo teste anterior.
+  afterEach(() => document.querySelector('.cartao')?.dispatchEvent(new Event('dragend', { bubbles: true })));
+  function montar() {
+    const a = { ...acoes(), aoMover: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(1, 'A', 'IDEALIZADO'), t(2, 'B', 'FAZENDO')] }, a);
+    return a;
+  }
+
+  it('o cartão é draggable e o dragstart grava text/plain e effectAllowed=move', () => {
+    montar();
+    expect(cart(1).draggable).toBe(true);
+    const ev = dispara(cart(1), 'dragstart');
+    const dt = (ev as unknown as { dataTransfer: { setData: ReturnType<typeof vi.fn>; effectAllowed: string } }).dataTransfer;
+    expect(dt.setData).toHaveBeenCalledWith('text/plain', '1');
+    expect(dt.effectAllowed).toBe('move');
+  });
+
+  it('drop em outra coluna chama aoMover(id, status) uma vez', () => {
+    const a = montar();
+    dispara(cart(1), 'dragstart');
+    const ev = dispara(coluna('FAZENDO'), 'drop');
+    expect(a.aoMover).toHaveBeenCalledTimes(1);
+    expect(a.aoMover).toHaveBeenCalledWith(1, 'FAZENDO');
+    expect(ev.defaultPrevented).toBe(true);
+  });
+
+  it('drop sobre um cartão da coluna alvo (filho da coluna) também vale', () => {
+    const a = montar();
+    dispara(cart(1), 'dragstart');
+    dispara(cart(2), 'drop');
+    expect(a.aoMover).toHaveBeenCalledWith(1, 'FAZENDO');
+  });
+
+  it('drop na própria coluna não chama aoMover', () => {
+    const a = montar();
+    dispara(cart(1), 'dragstart');
+    dispara(coluna('IDEALIZADO'), 'drop');
+    expect(a.aoMover).not.toHaveBeenCalled();
+  });
+
+  it('drop sem arrasto prévio de cartão (texto arrastado) não chama aoMover nem cancela o evento', () => {
+    const a = montar();
+    const ev = dispara(coluna('FAZENDO'), 'drop');
+    expect(a.aoMover).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('dragstart de seleção de texto dentro do cartão (alvo não é o cartão) não inicia arrasto', () => {
+    const a = montar();
+    dispara(cart(1).querySelector('.cartao-selos')!, 'dragstart');
+    dispara(coluna('FAZENDO'), 'drop');
+    expect(a.aoMover).not.toHaveBeenCalled();
+  });
+
+  it('dragend limpa o estado: um drop depois dele não move', () => {
+    const a = montar();
+    dispara(cart(1), 'dragstart');
+    dispara(cart(1), 'dragend');
+    dispara(coluna('FAZENDO'), 'drop');
+    expect(a.aoMover).not.toHaveBeenCalled();
+  });
+
+  it('o drop também limpa o estado: um segundo drop sem novo arrasto não move de novo', () => {
+    const a = montar();
+    dispara(cart(1), 'dragstart');
+    dispara(coluna('FAZENDO'), 'drop');
+    dispara(coluna('FAZENDO'), 'drop');
+    expect(a.aoMover).toHaveBeenCalledTimes(1);
+  });
+
+  it('dragover só aceita (preventDefault) com cartão arrastado e em coluna diferente da origem', () => {
+    montar();
+    expect(dispara(coluna('FAZENDO'), 'dragover').defaultPrevented).toBe(false); // sem arrasto
+    dispara(cart(1), 'dragstart');
+    expect(dispara(coluna('FAZENDO'), 'dragover').defaultPrevented).toBe(true);
+    expect(dispara(coluna('IDEALIZADO'), 'dragover').defaultPrevented).toBe(false); // própria coluna
+  });
+
+  it('dragenter marca a coluna alvo; dragleave e drop desmarcam; a própria coluna nunca é marcada', () => {
+    montar();
+    dispara(cart(1), 'dragstart');
+    dispara(coluna('IDEALIZADO'), 'dragenter');
+    expect(marcada('IDEALIZADO')).toBe(false);
+    dispara(coluna('FAZENDO'), 'dragenter');
+    expect(marcada('FAZENDO')).toBe(true);
+    dispara(coluna('FAZENDO'), 'dragleave');
+    expect(marcada('FAZENDO')).toBe(false);
+    dispara(coluna('FAZENDO'), 'dragenter');
+    dispara(coluna('FAZENDO'), 'drop');
+    expect(marcada('FAZENDO')).toBe(false);
+  });
+
+  it('entrar em filhos da coluna (dragleave do pai) não apaga a marca: conta profundidade', () => {
+    montar();
+    dispara(cart(1), 'dragstart');
+    dispara(coluna('FAZENDO'), 'dragenter');
+    dispara(cart(2), 'dragenter'); // entrou no filho (o evento borbulha até a coluna: profundidade 2)
+    dispara(coluna('FAZENDO'), 'dragleave'); // saiu do pai, mas ainda está dentro
+    expect(marcada('FAZENDO')).toBe(true);
+    dispara(cart(2), 'dragleave'); // saiu de verdade
+    expect(marcada('FAZENDO')).toBe(false);
+  });
+
+  it('dragenter sem cartão arrastado não marca; dragend desmarca tudo', () => {
+    montar();
+    dispara(coluna('FAZENDO'), 'dragenter');
+    expect(marcada('FAZENDO')).toBe(false);
+    dispara(cart(1), 'dragstart');
+    dispara(coluna('FAZENDO'), 'dragenter');
+    dispara(cart(1), 'dragend');
+    expect(marcada('FAZENDO')).toBe(false);
+  });
+
+  it('arrastar não quebra o clique no título nem o menu', () => {
+    const a = { ...acoes(), aoMover: vi.fn(), aoEditar: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(1, 'A', 'IDEALIZADO')] }, a);
+    cart(1).querySelector<HTMLButtonElement>('.cartao-titulo')!.click();
+    expect(a.aoEditar).toHaveBeenCalledWith(1);
+    cart(1).querySelector<HTMLButtonElement>('.botao-mover')!.click();
+    expect(cart(1).querySelector<HTMLElement>('.menu-mover-lista')!.hidden).toBe(false);
   });
 });

@@ -185,3 +185,45 @@ describe('app: mover', () => {
     expect(aviso()?.textContent).toBe('');
   });
 });
+
+function arrastarPara(raiz: HTMLElement, id: number, status: string): void {
+  const ev = (tipo: string) => {
+    const e = new Event(tipo, { bubbles: true, cancelable: true });
+    Object.defineProperty(e, 'dataTransfer', { value: { setData: () => {}, effectAllowed: '' } });
+    return e;
+  };
+  cartao(raiz, id).dispatchEvent(ev('dragstart'));
+  raiz.querySelector(`.coluna[data-status="${status}"]`)!.dispatchEvent(ev('drop'));
+  cartao(raiz, id)?.dispatchEvent(ev('dragend'));
+}
+
+describe('app: mover por arrastar (mesmo aoMover do menu)', () => {
+  it('drop em outra coluna: um PATCH só com o status, cartão na coluna nova, foco e anúncio', async () => {
+    const { raiz, atualizarTarefa } = await subir();
+    arrastarPara(raiz, 1, 'CONCLUIDO');
+    await esperar();
+    await esperar();
+    expect(atualizarTarefa).toHaveBeenCalledTimes(1);
+    expect(atualizarTarefa).toHaveBeenCalledWith(1, { status: 'CONCLUIDO' });
+    expect(emColuna(raiz, 1)).toBe('CONCLUIDO');
+    expect(document.activeElement).toBe(raiz.querySelector('[data-foco="cartao-1"]'));
+    expect(document.querySelector('[role="status"]')?.textContent).toBe('«Pagar conta» movido para Concluído.');
+  });
+
+  it('soltar na própria coluna não faz PATCH', async () => {
+    const { raiz, atualizarTarefa } = await subir();
+    arrastarPara(raiz, 1, 'IDEALIZADO');
+    await esperar();
+    expect(atualizarTarefa).not.toHaveBeenCalled();
+  });
+
+  it('404 ao soltar: mesmo aviso e recarga do menu', async () => {
+    const { raiz, listarTarefas, setLista } = await subir(async () => ({ ok: false, tipo: 'naoEncontrada' }));
+    setLista([tarefa(2, 'Outra')]);
+    arrastarPara(raiz, 1, 'FAZENDO');
+    await esperar();
+    await esperar();
+    expect(aviso()?.textContent).toBe('Esta tarefa não existe mais.');
+    expect(listarTarefas).toHaveBeenCalledTimes(2);
+  });
+});

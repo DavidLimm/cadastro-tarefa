@@ -15,7 +15,7 @@ export interface AcoesQuadro {
   aoAdicionar?: () => void;
   /** Abrir o diálogo de edição do cartão (clique no título ou em área vazia do cartão). */
   aoEditar?: (id: number) => void;
-  /** Único ponto de saída para mudar o status: menu, atalho "Mover para Abandonado" (e, depois, arrastar). */
+  /** Único ponto de saída para mudar o status: menu, atalho "Mover para Abandonado" e soltar um cartão numa coluna. */
   aoMover?: (id: number, status: Status) => void;
   /** Relógio injetável (testes). Padrão: a hora do navegador; o "hoje" dos selos é a data local. */
   hoje?: () => Date;
@@ -60,12 +60,36 @@ function selo(doc: Document, tipo: 'prioridade' | 'prazo', s: Selo<string>): HTM
   return e;
 }
 
+// Arrastar e soltar nativo (ADR 0008). O cartão em arrasto vive numa variável do módulo porque `getData`
+// não é legível em `dragover`; o `dataTransfer` só é preenchido por exigência do Firefox.
+let arrastado: { id: number; origem: Status } | undefined;
+// Profundidade de dragenter/dragleave por coluna: entrar num filho dispara dragleave no pai, e sem contar a marca piscaria.
+const profundidade = new WeakMap<HTMLElement, number>();
+const ATRIBUTO_ALVO = 'data-alvo-arrasto'; // o visual (borda tracejada) é do estilo.css
+
+function limparArrasto(raiz: ParentNode): void {
+  arrastado = undefined;
+  for (const col of raiz.querySelectorAll<HTMLElement>(`[${ATRIBUTO_ALVO}]`)) col.removeAttribute(ATRIBUTO_ALVO);
+  for (const col of raiz.querySelectorAll<HTMLElement>('.coluna')) profundidade.delete(col);
+}
+
 function cartao(doc: Document, tarefa: Tarefa, hoje: string, acoes: AcoesQuadro): HTMLElement {
   const d = descreverCartao(tarefa, hoje);
   const c = el(doc, 'article', 'cartao');
   c.dataset.id = String(tarefa.id);
   c.dataset.status = tarefa.status;
   c.dataset.urgencia = d.urgencia; // o CSS (T-12) pinta a borda esquerda a partir daqui
+  c.draggable = true;
+  c.addEventListener('dragstart', (ev) => {
+    if (ev.target !== c) return; // arrastar texto selecionado dentro do cartão não é arrastar o cartão
+    arrastado = { id: tarefa.id, origem: tarefa.status };
+    const dt = (ev as DragEvent).dataTransfer;
+    if (dt) {
+      dt.setData('text/plain', String(tarefa.id));
+      dt.effectAllowed = 'move';
+    }
+  });
+  c.addEventListener('dragend', () => limparArrasto(c.ownerDocument));
   const editar = () => acoes.aoEditar?.(tarefa.id);
   const titulo = botao(doc, tarefa.titulo, 'cartao-titulo', `cartao-${tarefa.id}`, editar);
   // Área vazia do cartão também abre a edição; cliques em botões (título, sugestão) têm ação própria.
@@ -95,6 +119,28 @@ function cartao(doc: Document, tarefa: Tarefa, hoje: string, acoes: AcoesQuadro)
 function coluna(doc: Document, status: Status, tarefas: Tarefa[], hoje: string, acoes: AcoesQuadro): HTMLElement {
   const sec = el(doc, 'section', 'coluna');
   sec.dataset.status = status;
+  // Alvo válido: há cartão arrastado e a coluna não é a de origem (soltar onde já está não faz nada).
+  const aceita = () => arrastado !== undefined && arrastado.origem !== status;
+  sec.addEventListener('dragenter', () => {
+    if (!aceita()) return;
+    profundidade.set(sec, (profundidade.get(sec) ?? 0) + 1);
+    sec.setAttribute(ATRIBUTO_ALVO, '');
+  });
+  sec.addEventListener('dragover', (ev) => {
+    if (aceita()) ev.preventDefault(); // sem isso o navegador não permite soltar aqui
+  });
+  sec.addEventListener('dragleave', () => {
+    const n = (profundidade.get(sec) ?? 0) - 1;
+    profundidade.set(sec, Math.max(n, 0));
+    if (n <= 0) sec.removeAttribute(ATRIBUTO_ALVO);
+  });
+  sec.addEventListener('drop', (ev) => {
+    const atual = arrastado;
+    if (!atual) return; // texto/arquivo arrastado de fora: ignora e deixa o navegador agir
+    ev.preventDefault();
+    limparArrasto(sec.ownerDocument);
+    if (atual.origem !== status) acoes.aoMover?.(atual.id, status);
+  });
   const cab = el(doc, 'header', 'coluna-cabecalho');
   const h2 = el(doc, 'h2');
   h2.append(el(doc, 'span', 'coluna-nome', ROTULOS_STATUS[status]), ' ', ...contagem(doc, tarefas.length));
