@@ -167,6 +167,35 @@ export function pedirFoco(raiz: HTMLElement, id: string): void {
   raiz.dataset.focoPendente = id;
 }
 
+// Rolagem do quadro por raiz. Guardada quando há quadro na tela e mantida durante erro/carregando,
+// para que "Tentar de novo" também volte à mesma posição (spec, suposição 9).
+interface Rolagem {
+  esquerda: number;
+  colunas: Map<string, number>;
+}
+const rolagens = new WeakMap<HTMLElement, Rolagem>();
+const SELETOR_LISTA = '.coluna[data-status] > .coluna-cartoes';
+
+function guardarRolagem(raiz: HTMLElement): void {
+  const quadro = raiz.querySelector<HTMLElement>('.quadro');
+  if (!quadro) return;
+  const colunas = new Map<string, number>();
+  for (const lista of raiz.querySelectorAll<HTMLElement>(SELETOR_LISTA)) {
+    colunas.set(lista.parentElement?.dataset.status ?? '', lista.scrollTop);
+  }
+  rolagens.set(raiz, { esquerda: quadro.scrollLeft, colunas });
+}
+
+function restaurarRolagem(raiz: HTMLElement): void {
+  const guardada = rolagens.get(raiz);
+  const quadro = raiz.querySelector<HTMLElement>('.quadro');
+  if (!guardada || !quadro) return;
+  quadro.scrollLeft = guardada.esquerda;
+  for (const lista of raiz.querySelectorAll<HTMLElement>(SELETOR_LISTA)) {
+    lista.scrollTop = guardada.colunas.get(lista.parentElement?.dataset.status ?? '') ?? 0;
+  }
+}
+
 /** Redesenha todo o quadro dentro de `raiz` conforme o estado. */
 export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes: AcoesQuadro): void {
   const doc = raiz.ownerDocument;
@@ -174,6 +203,7 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
   const ativo = doc.activeElement;
   const focoAtual = ativo instanceof HTMLElement && raiz.contains(ativo) ? ativo.dataset.foco : undefined;
   const alvo = raiz.dataset.focoPendente ?? focoAtual;
+  guardarRolagem(raiz);
   const filhos: HTMLElement[] = [];
 
   if (estado.tipo === 'carregando') {
@@ -198,6 +228,7 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
     filhos.push(quadro);
   }
   raiz.replaceChildren(...filhos);
+  restaurarRolagem(raiz);
 
   if (alvo === undefined) return;
   const novo = raiz.querySelector<HTMLElement>(`[data-foco="${alvo}"]`);

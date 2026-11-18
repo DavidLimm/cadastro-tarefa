@@ -629,3 +629,32 @@ describe('arrastar e soltar (HTML5 nativo, eventos sintéticos)', () => {
     expect(cart(1).querySelector<HTMLElement>('.menu-mover-lista')!.hidden).toBe(false);
   });
 });
+
+describe('rolagem preservada ao redesenhar (spec suposição 9)', () => {
+  const tarefas = [t(1, 'A', 'IDEALIZADO'), t(2, 'B', 'FAZENDO')];
+  const lista = (status: string) => coluna(status).querySelector<HTMLElement>('.coluna-cartoes')!;
+  const quadro = () => raiz.querySelector<HTMLElement>('.quadro')!;
+
+  it('mantém o scrollTop de cada coluna e o scrollLeft do quadro depois de redesenhar', () => {
+    desenhar({ tipo: 'pronto', tarefas });
+    lista('IDEALIZADO').scrollTop = 120;
+    lista('FAZENDO').scrollTop = 45;
+    quadro().scrollLeft = 200;
+    desenhar({ tipo: 'pronto', tarefas });
+    expect(lista('IDEALIZADO').scrollTop).toBe(120);
+    expect(lista('FAZENDO').scrollTop).toBe(45);
+    expect(lista('CONCLUIDO').scrollTop).toBe(0);
+    expect(quadro().scrollLeft).toBe(200);
+  });
+
+  it('sobrevive a uma passagem por erro/carregando (Tentar de novo)', () => {
+    desenhar({ tipo: 'pronto', tarefas });
+    lista('FAZENDO').scrollTop = 80;
+    quadro().scrollLeft = 30;
+    desenhar({ tipo: 'erro', mensagem: 'falhou' });
+    desenhar({ tipo: 'carregando' });
+    desenhar({ tipo: 'pronto', tarefas });
+    expect(lista('FAZENDO').scrollTop).toBe(80);
+    expect(quadro().scrollLeft).toBe(30);
+  });
+});
