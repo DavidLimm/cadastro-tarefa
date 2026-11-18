@@ -1,12 +1,15 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import { TarefaRepositorioMemoria, type TarefaRepositorio } from './repositorio.js';
 
-// Assinatura prevista; repositorio entra na T-03/T-04.
 export interface OpcoesApp {
-  repositorio?: unknown;
+  repositorio?: TarefaRepositorio;
   agora?: () => Date;
 }
 
-export function criarApp(_opcoes: OpcoesApp = {}): FastifyInstance {
+export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
+  // Usado a partir da T-04 (rotas); por ora só resolve o default em memória.
+  const _repositorio = opcoes.repositorio ?? new TarefaRepositorioMemoria();
+  void _repositorio;
   const app = Fastify();
 
   // Rota de fumaça (T-01), removível.
