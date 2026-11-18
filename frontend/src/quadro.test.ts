@@ -8,6 +8,7 @@ const t = (id: number, titulo: string, prioridade: Tarefa['prioridade'], prazo =
   titulo,
   prioridade,
   prazo,
+  status: 'IDEALIZADO',
 });
 
 let raiz: HTMLElement;

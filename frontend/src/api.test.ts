@@ -15,7 +15,7 @@ function simularFetch(r: Response | Error) {
   return fetchFalso;
 }
 
-const tarefa: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-15' };
+const tarefa: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-15', status: 'IDEALIZADO' };
 const nova: NovaTarefa = { titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-15' };
 
 afterEach(() => vi.unstubAllGlobals());

@@ -18,7 +18,7 @@ beforeEach(() => {
 });
 
 const HOJE = new Date(2030, 5, 15, 23, 30); // 15/06/2030 23:30 local
-const criada: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2030-06-20' };
+const criada: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2030-06-20', status: 'IDEALIZADO' };
 
 function montar(resp: ResultadoCriacao | Promise<ResultadoCriacao> = { ok: true, tarefa: criada }) {
   const criarTarefa = vi.fn<(n: NovaTarefa) => Promise<ResultadoCriacao>>(async () => resp);

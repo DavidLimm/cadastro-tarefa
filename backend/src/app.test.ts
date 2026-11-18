@@ -33,7 +33,7 @@ describe('POST /api/tarefas', () => {
     const { app, resposta } = await postar({ ...valida, titulo: '  Pagar conta  ' });
     expect(resposta.statusCode).toBe(201);
     expect(resposta.headers.location).toBe('/api/tarefas/1');
-    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20' });
+    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20', status: 'IDEALIZADO' });
     await app.close();
   });
 
@@ -129,9 +129,9 @@ describe('POST /api/tarefas', () => {
   });
 
   it('campos extras são ignorados', async () => {
-    const { app, resposta } = await postar({ ...valida, id: 99, admin: true });
+    const { app, resposta } = await postar({ ...valida, id: 99, admin: true, status: 'CONCLUIDO' });
     expect(resposta.statusCode).toBe(201);
-    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20' });
+    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20', status: 'IDEALIZADO' });
     await app.close();
   });
 

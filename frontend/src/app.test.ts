@@ -16,7 +16,7 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="app"></div>';
 });
 
-const nova: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2999-12-31' };
+const nova: Tarefa = { id: 1, titulo: 'Pagar conta', prioridade: 'MEDIA', prazo: '2999-12-31', status: 'IDEALIZADO' };
 const esperar = () => new Promise((r) => setTimeout(r, 0));
 
 describe('iniciar: ligação entre quadro, diálogo e API', () => {

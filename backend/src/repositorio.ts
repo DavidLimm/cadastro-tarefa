@@ -13,7 +13,7 @@ export class TarefaRepositorioMemoria implements TarefaRepositorio {
 
   salvar(nova: NovaTarefa): Tarefa {
     this.ultimoId += 1;
-    const tarefa: Tarefa = { id: this.ultimoId, ...nova };
+    const tarefa: Tarefa = { id: this.ultimoId, ...nova, status: 'IDEALIZADO' };
     this.tarefas.set(tarefa.id, tarefa);
     return { ...tarefa };
   }

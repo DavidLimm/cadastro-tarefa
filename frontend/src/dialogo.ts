@@ -132,6 +132,7 @@ export function criarDialogo(doc: Document, deps: DepsDialogo): Dialogo {
   function mostrarErros(lista: ErroCampo[]): void {
     limparErros();
     for (const e of lista) {
+      if (e.campo === 'status') continue; // o diálogo de criação não tem campo status
       erros[e.campo].textContent = e.mensagem;
       entradas[e.campo].setAttribute('aria-invalid', 'true');
     }

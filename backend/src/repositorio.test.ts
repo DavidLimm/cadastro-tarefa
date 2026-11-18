@@ -21,17 +21,17 @@ describe('TarefaRepositorioMemoria', () => {
     const a = repo.salvar(nova('a'));
     const b = repo.salvar(nova('b'));
     expect(repo.listar()).toEqual([a, b]);
-    expect(a).toEqual({ id: 1, ...nova('a') });
+    expect(a).toEqual({ id: 1, ...nova('a'), status: 'IDEALIZADO' });
   });
 
   it('alterar o resultado de listar não altera o estado interno', () => {
     const repo = new TarefaRepositorioMemoria();
     repo.salvar(nova('a'));
     const lista = repo.listar();
-    lista.push({ id: 99, ...nova('x') });
+    lista.push({ id: 99, ...nova('x'), status: 'IDEALIZADO' });
     const primeira = lista[0];
     if (primeira) primeira.titulo = 'alterado';
-    expect(repo.listar()).toEqual([{ id: 1, ...nova('a') }]);
+    expect(repo.listar()).toEqual([{ id: 1, ...nova('a'), status: 'IDEALIZADO' }]);
   });
 
   it('alterar a tarefa devolvida por salvar não altera o estado interno', () => {
