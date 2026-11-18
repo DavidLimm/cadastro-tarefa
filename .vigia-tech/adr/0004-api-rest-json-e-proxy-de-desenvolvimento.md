@@ -1,6 +1,6 @@
 # ADR 0004: API REST/JSON, erros em ProblemDetail, proxy do Vite em vez de CORS
 
-Status: Proposto (aguarda spec aprovada)
+Status: Aceito (spec aprovada pelo David em 2026-11-18)
 Data: 2026-11-18
 
 ## Contexto

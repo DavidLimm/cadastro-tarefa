@@ -95,7 +95,7 @@ Existe também `GET /api/saude` (responde `{"status":"ok"}`), uma rota de teste 
 
 ## Segurança conhecida
 
-O `npm audit` aponta 5 vulnerabilidades altas, todas só em dependências de desenvolvimento/teste (via picomatch/vitest). Em produção são 0. Risco aceito por enquanto; rever depois.
+O `npm audit` aponta 5 vulnerabilidades altas, todas só em dependências de desenvolvimento/teste (cadeia picomatch -> fdir, tinyglobby, vite e vitest). Em produção são 0. Risco aceito por enquanto; rever depois.
 
 ## Onde estão a spec e as decisões
 
@@ -113,7 +113,7 @@ Com back e front rodando, abra http://localhost:5173 e siga a lista. Reinicie o 
 6. Cadastro válido (título, prioridade, prazo de hoje): o diálogo fecha, a tarefa aparece na coluna certa, o contador sobe e o foco volta ao botão "Adicionar tarefa". Prazo de hoje deve ser aceito.
 7. Ordem: cadastre mais tarefas na mesma coluna com prazos diferentes: ficam do prazo mais próximo para o mais distante.
 8. Esc: abra o diálogo, digite algo e aperte Esc: fecha sem cadastrar; ao abrir de novo o formulário está limpo.
-9. Teclado: só com Tab, Enter e Esc consegue abrir, preencher, salvar e fechar? O foco é sempre visível?
+9. Teclado: só com Tab, Enter e Esc consegue abrir, preencher, salvar e fechar? No campo de data, digite os números (dia, mês e ano, ex.: 23112026). O foco é sempre visível?
 10. Back caído: pare o back (Ctrl+C no terminal 1) e recarregue a página: aparece mensagem de erro com "Tentar de novo". Suba o back de novo e clique no botão: o quadro volta.
 11. F5: com o back no ar, recarregue: as tarefas continuam (estão na memória do servidor). Se reiniciar o back, somem (esperado).
 12. Visual (T-10): compare com as imagens em `ideias/`: aparência próxima da referência (colunas, cartões, cores de prioridade, botão principal). Veja também a aba do navegador: tem ícone roxo, sem erro 404 de favicon.

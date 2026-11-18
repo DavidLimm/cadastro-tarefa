@@ -1,6 +1,6 @@
 # ADR 0002: Frontend em TypeScript + Vite 8, sem framework (vanilla)
 
-Status: Proposto (aguarda spec aprovada)
+Status: Aceito (spec aprovada pelo David em 2026-11-18)
 Data: 2026-11-18
 
 ## Contexto

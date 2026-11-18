@@ -1,6 +1,6 @@
 # ADR 0005: Backend em TypeScript (Node 24) + Fastify 5, com pasta `shared/`
 
-Status: Proposto (aguarda spec aprovada). Substitui o ADR 0001.
+Status: Aceito (spec aprovada pelo David em 2026-11-18). Substitui o ADR 0001.
 Data: 2026-11-18
 
 ## Contexto
