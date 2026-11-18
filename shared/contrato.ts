@@ -55,7 +55,7 @@ export function validarNovaTarefa(entrada: unknown, hoje: Date): ResultadoValida
   const titulo = typeof obj.titulo === 'string' ? obj.titulo.trim() : '';
   if (titulo === '') {
     erros.push({ campo: 'titulo', mensagem: 'Informe o título.' });
-  } else if (titulo.length > TITULO_MAX) {
+  } else if ([...titulo].length > TITULO_MAX) {
     erros.push({ campo: 'titulo', mensagem: `O título deve ter no máximo ${TITULO_MAX} caracteres.` });
   }
 

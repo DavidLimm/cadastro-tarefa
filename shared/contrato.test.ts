@@ -30,6 +30,11 @@ describe('validarNovaTarefa', () => {
     expect(campos({ ...valida, titulo: 'a'.repeat(101) })).toEqual(['titulo']);
   });
 
+  it('conta caracteres visíveis: 100 emojis passam e 101 não', () => {
+    expect(campos({ ...valida, titulo: '😀'.repeat(100) })).toEqual([]);
+    expect(campos({ ...valida, titulo: '😀'.repeat(101) })).toEqual(['titulo']);
+  });
+
   it('rejeita prioridade inválida ou ausente', () => {
     expect(campos({ ...valida, prioridade: 'URGENTE' })).toEqual(['prioridade']);
     expect(campos({ ...valida, prioridade: undefined })).toEqual(['prioridade']);
