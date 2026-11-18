@@ -89,6 +89,13 @@ export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
     return repositorio.atualizar(id, resultado.valor);
   });
 
+  // Sem corpo e sem Content-Type (Fastify rejeita JSON vazio). O 404 já saiu no onRequest.
+  app.delete('/api/tarefas/:id', { onRequest: exigirTarefa }, async (requisicao, resposta) => {
+    const id = idDaRota(requisicao.params);
+    if (id === undefined || !repositorio.excluir(id)) return problema(resposta, 404, 'Tarefa não encontrada');
+    return resposta.code(204).send();
+  });
+
   app.get('/api/tarefas', async () => repositorio.listar().sort(compararTarefas));
 
   return app;

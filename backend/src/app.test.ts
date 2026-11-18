@@ -379,3 +379,51 @@ describe('PATCH /api/tarefas/:id', () => {
     await app.close();
   });
 });
+
+describe('DELETE /api/tarefas/:id', () => {
+  const agora = () => new Date(2030, 5, 15);
+  const JSON_H = { 'content-type': 'application/json' };
+  const criar = async (app: ReturnType<typeof criarApp>, titulo: string) =>
+    (await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify({ titulo, prioridade: 'MEDIA', prazo: '2030-06-20' }), headers: JSON_H })).json() as { id: number };
+  const listar = async (app: ReturnType<typeof criarApp>) => (await app.inject({ method: 'GET', url: '/api/tarefas' })).json() as { id: number }[];
+
+  it('id existente -> 204 sem corpo (e sem Content-Type na requisição) e some do GET', async () => {
+    const app = criarApp({ agora });
+    const a = await criar(app, 'A');
+    const b = await criar(app, 'B');
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${a.id}` });
+    expect(r.statusCode).toBe(204);
+    expect(r.body).toBe('');
+    expect((await listar(app)).map((t) => t.id)).toEqual([b.id]);
+    await app.close();
+  });
+
+  it('segundo DELETE do mesmo id -> 404 problem+json', async () => {
+    const app = criarApp({ agora });
+    const a = await criar(app, 'A');
+    await app.inject({ method: 'DELETE', url: `/api/tarefas/${a.id}` });
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${a.id}` });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    await app.close();
+  });
+
+  it.each(['99', 'abc', '1.5', '0', '-1'])('id %s -> 404 problem+json', async (id) => {
+    const app = criarApp({ agora });
+    await criar(app, 'A');
+    const r = await app.inject({ method: 'DELETE', url: `/api/tarefas/${id}` });
+    expect(r.statusCode).toBe(404);
+    expect(r.headers['content-type']).toContain('application/problem+json');
+    expect(await listar(app)).toHaveLength(1);
+    await app.close();
+  });
+
+  it('id não reaproveitado: criar depois de excluir (inclusive o último) gera id novo', async () => {
+    const app = criarApp({ agora });
+    await criar(app, 'A');
+    const b = await criar(app, 'B');
+    await app.inject({ method: 'DELETE', url: `/api/tarefas/${b.id}` });
+    expect((await criar(app, 'C')).id).toBe(3);
+    await app.close();
+  });
+});
