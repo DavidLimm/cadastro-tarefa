@@ -99,9 +99,16 @@ export function criarMenuMover(
   lista.id = idLista;
   lista.hidden = true;
 
+  // Clique fora fecha o menu. Escuta no documento só enquanto aberto; não mexe no foco (quem foi clicado o mantém).
+  const aoClicarFora = (ev: Event): void => {
+    if (!(ev.target instanceof Node) || !menu.contains(ev.target)) definirAberto(false);
+  };
+
   function definirAberto(aberto: boolean): void {
     botao.setAttribute('aria-expanded', String(aberto));
     lista.hidden = !aberto;
+    if (aberto) doc.addEventListener('click', aoClicarFora);
+    else doc.removeEventListener('click', aoClicarFora);
   }
 
   for (const destino of STATUS.filter((s) => s !== tarefa.status)) {
@@ -119,6 +126,10 @@ export function criarMenuMover(
   }
 
   botao.addEventListener('click', () => definirAberto(botao.getAttribute('aria-expanded') !== 'true'));
+  // Tab (ou foco programático) para fora do menu fecha. relatedTarget nulo (janela perdeu o foco) não fecha.
+  menu.addEventListener('focusout', (ev) => {
+    if (ev.relatedTarget instanceof Node && !menu.contains(ev.relatedTarget)) definirAberto(false);
+  });
   menu.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape' && botao.getAttribute('aria-expanded') === 'true') {
       ev.stopPropagation();

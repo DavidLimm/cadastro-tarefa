@@ -400,6 +400,51 @@ describe('menu "Mover para…" (disclosure)', () => {
     expect(document.activeElement).toBe(botaoMover(5));
   });
 
+  it('clicar fora do menu fecha sem tirar o foco do elemento clicado', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    const titulo = cartaoDe(5).querySelector<HTMLElement>('.cartao-titulo')!;
+    titulo.focus();
+    document.body.click();
+    expect(lista(5).hidden).toBe(true);
+    expect(botaoMover(5).getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(titulo);
+  });
+
+  it('abrir o menu de outro cartão fecha o que estava aberto', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO'), t(6, 'B', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    botaoMover(6).click();
+    expect(lista(5).hidden).toBe(true);
+    expect(lista(6).hidden).toBe(false);
+  });
+
+  it('clicar dentro do menu (na lista) não fecha por causa do clique fora', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    lista(5).click();
+    expect(lista(5).hidden).toBe(false);
+  });
+
+  it('o foco saindo do menu para outro elemento fecha, sem roubar o foco', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    const ultima = [...lista(5).querySelectorAll('button')].at(-1)!;
+    ultima.focus();
+    const proximo = raiz.querySelector<HTMLElement>('[data-foco="adicionar"]')!;
+    proximo.focus(); // Tab para fora: focusout com relatedTarget fora do menu
+    expect(lista(5).hidden).toBe(true);
+    expect(document.activeElement).toBe(proximo);
+  });
+
+  it('o foco indo do botão para uma opção do próprio menu mantém aberto', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    botaoMover(5).focus();
+    lista(5).querySelector('button')!.focus();
+    expect(lista(5).hidden).toBe(false);
+  });
+
   it('escolher uma opção chama aoMover(id, status) uma vez, fecha o menu e devolve o foco ao botão', () => {
     const a = { ...acoes(), aoMover: vi.fn() };
     desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO'), t(6, 'B', 'FAZENDO')] }, a);
