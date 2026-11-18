@@ -1,6 +1,7 @@
 import { criarDialogo, type ResultadoDialogo } from './dialogo.js';
 import type { ResultadoAtualizacao, ResultadoCriacao, ResultadoExclusao, ResultadoLista } from './api.js';
-import type { EdicaoTarefa, NovaTarefa, Tarefa } from '../../shared/contrato.js';
+import type { EdicaoTarefa, NovaTarefa, Status, Tarefa } from '../../shared/contrato.js';
+import { ROTULOS_STATUS } from './inicio.js';
 import { pedirFoco, renderizarQuadro, type EstadoQuadro } from './quadro.js';
 
 export interface DepsApp {
@@ -26,6 +27,15 @@ export function iniciar(raiz: HTMLElement, doc: Document, deps: DepsApp): void {
   function avisar(texto: string): void {
     aviso.textContent = texto;
   }
+
+  // Anúncio de sucesso para leitor de tela, também criado uma vez e fora do quadro.
+  const anuncio = doc.createElement('div');
+  anuncio.className = 'so-leitor';
+  anuncio.setAttribute('role', 'status');
+  anuncio.setAttribute('aria-live', 'polite');
+  doc.body.append(anuncio);
+
+  const movendo = new Set<number>(); // ids com PATCH em andamento: evita duas movidas simultâneas
 
   const dialogo = criarDialogo(doc, {
     criarTarefa: deps.criarTarefa,
@@ -66,6 +76,40 @@ export function iniciar(raiz: HTMLElement, doc: Document, deps: DepsApp): void {
     dialogo.abrirEditar(tarefa);
   }
 
+  /** Único caminho para mudar o status de um cartão (menu, atalho e, na T-11, arrastar). */
+  async function aoMover(id: number, status: Status): Promise<void> {
+    if (movendo.has(id)) return;
+    movendo.add(id);
+    avisar('');
+    anuncio.textContent = '';
+    try {
+      const r = await deps.atualizarTarefa(id, { status });
+      if (r.ok) {
+        pedirFoco(raiz, `cartao-${id}`);
+        await carregar(true);
+        anuncio.textContent = `«${r.tarefa.titulo}» movido para ${ROTULOS_STATUS[status]}.`;
+        return;
+      }
+      switch (r.tipo) {
+        case 'naoEncontrada':
+          avisar(MSG_SUMIU);
+          await carregar(true);
+          break;
+        case 'validacao':
+        case 'rede':
+        case 'servidor':
+          avisar(`Não foi possível mover. ${r.tipo === 'validacao' ? 'Resposta inesperada do servidor.' : r.mensagem}`);
+          break;
+        default: {
+          const _exaustivo: never = r;
+          return _exaustivo;
+        }
+      }
+    } finally {
+      movendo.delete(id);
+    }
+  }
+
   function desenhar(estado: EstadoQuadro): void {
     renderizarQuadro(raiz, estado, {
       aoRecarregar: () => void carregar(),
@@ -74,6 +118,7 @@ export function iniciar(raiz: HTMLElement, doc: Document, deps: DepsApp): void {
         dialogo.abrir();
       },
       aoEditar,
+      aoMover: (id, status) => void aoMover(id, status),
     });
   }
 

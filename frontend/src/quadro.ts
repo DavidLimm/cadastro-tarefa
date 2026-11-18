@@ -1,6 +1,6 @@
 import type { Status, Tarefa } from '../../shared/contrato.js';
 import { diaLocal } from '../../shared/prazo.js';
-import { descreverCartao, type Selo } from './cartao.js';
+import { criarMenuMover, descreverCartao, type Selo } from './cartao.js';
 import { criarIcone } from './icones.js';
 import { ROTULOS_STATUS, TITULO_PAGINA, statusDaTela } from './inicio.js';
 
@@ -15,6 +15,8 @@ export interface AcoesQuadro {
   aoAdicionar?: () => void;
   /** Abrir o diálogo de edição do cartão (clique no título ou em área vazia do cartão). */
   aoEditar?: (id: number) => void;
+  /** Único ponto de saída para mudar o status: menu, atalho "Mover para Abandonado" (e, depois, arrastar). */
+  aoMover?: (id: number, status: Status) => void;
   /** Relógio injetável (testes). Padrão: a hora do navegador; o "hoje" dos selos é a data local. */
   hoje?: () => Date;
 }
@@ -76,8 +78,17 @@ function cartao(doc: Document, tarefa: Tarefa, hoje: string, acoes: AcoesQuadro)
   const h3 = el(doc, 'h3', 'cartao-cabecalho');
   h3.append(titulo);
   c.append(h3, selos, el(doc, 'p', 'prazo', `Prazo: ${formatarPrazo(tarefa.prazo)}`));
-  // Sugestão, nunca ação automática; o clique é ligado na T-10.
-  if (d.sugerirAbandono) c.append(botao(doc, 'Mover para Abandonado', 'botao-abandonar', `abandonar-${tarefa.id}`));
+  const rodape = el(doc, 'div', 'cartao-acoes');
+  rodape.append(criarMenuMover(doc, tarefa, acoes.aoMover));
+  // Sugestão, nunca ação automática: só move quando o usuário clica.
+  if (d.sugerirAbandono) {
+    rodape.append(
+      botao(doc, 'Mover para Abandonado', 'botao-abandonar', `abandonar-${tarefa.id}`, () =>
+        acoes.aoMover?.(tarefa.id, 'ABANDONADO'),
+      ),
+    );
+  }
+  c.append(rodape);
   return c;
 }
 

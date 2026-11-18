@@ -347,3 +347,102 @@ describe('abrir edição pelo cartão', () => {
     expect(a.aoEditar).not.toHaveBeenCalled();
   });
 });
+
+describe('menu "Mover para…" (disclosure)', () => {
+  const botaoMover = (id: number) => cartaoDe(id).querySelector<HTMLButtonElement>('.botao-mover')!;
+  const lista = (id: number) => cartaoDe(id).querySelector<HTMLElement>('.menu-mover-lista')!;
+  const opcoes = (id: number) => [...lista(id).querySelectorAll('button')].map((b) => b.textContent);
+
+  it('começa fechado: botão com aria-expanded=false e aria-controls para a lista escondida', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    const b = botaoMover(5);
+    expect(b.textContent).toBe('Mover para…');
+    expect(b.type).toBe('button');
+    expect(b.getAttribute('aria-expanded')).toBe('false');
+    expect(b.getAttribute('aria-controls')).toBe(lista(5).id);
+    expect(lista(5).hidden).toBe(true);
+  });
+
+  it('não usa <select>: a lista é de botões comuns', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    expect(cartaoDe(5).querySelector('select')).toBeNull();
+    for (const b of lista(5).querySelectorAll('button')) expect(b.type).toBe('button');
+  });
+
+  it.each([
+    ['IDEALIZADO', ['Fazendo', 'Concluído', 'Abandonado']],
+    ['FAZENDO', ['Idealizado', 'Concluído', 'Abandonado']],
+    ['CONCLUIDO', ['Idealizado', 'Fazendo', 'Abandonado']],
+    ['ABANDONADO', ['Idealizado', 'Fazendo', 'Concluído']],
+  ] as const)('em %s as opções são os outros três status, sem a coluna atual', (st, esperado) => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', st)] });
+    expect(opcoes(5)).toEqual(esperado);
+  });
+
+  it('clicar abre (aria-expanded=true, lista visível) e clicar de novo fecha', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    expect(botaoMover(5).getAttribute('aria-expanded')).toBe('true');
+    expect(lista(5).hidden).toBe(false);
+    botaoMover(5).click();
+    expect(botaoMover(5).getAttribute('aria-expanded')).toBe('false');
+    expect(lista(5).hidden).toBe(true);
+  });
+
+  it('Esc com o menu aberto fecha e devolve o foco ao botão "Mover para…"', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    const primeira = lista(5).querySelector('button')!;
+    primeira.focus();
+    primeira.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(lista(5).hidden).toBe(true);
+    expect(botaoMover(5).getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(botaoMover(5));
+  });
+
+  it('escolher uma opção chama aoMover(id, status) uma vez, fecha o menu e devolve o foco ao botão', () => {
+    const a = { ...acoes(), aoMover: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO'), t(6, 'B', 'FAZENDO')] }, a);
+    botaoMover(6).click();
+    [...lista(6).querySelectorAll('button')].find((b) => b.textContent === 'Concluído')!.click();
+    expect(a.aoMover).toHaveBeenCalledTimes(1);
+    expect(a.aoMover).toHaveBeenCalledWith(6, 'CONCLUIDO');
+    expect(lista(6).hidden).toBe(true);
+    expect(document.activeElement).toBe(botaoMover(6));
+  });
+
+  it('usar o menu não abre o diálogo de edição', () => {
+    const a = { ...acoes(), aoMover: vi.fn(), aoEditar: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] }, a);
+    botaoMover(5).click();
+    lista(5).querySelector('button')!.click();
+    expect(a.aoEditar).not.toHaveBeenCalled();
+  });
+});
+
+describe('atalho "Mover para Abandonado"', () => {
+  const atalho = (id: number) => cartaoDe(id).querySelector<HTMLButtonElement>('.botao-abandonar');
+
+  it.each(['IDEALIZADO', 'FAZENDO'] as const)('vencida em %s: aparece e chama aoMover(id, ABANDONADO)', (st) => {
+    const a = { ...acoes(), aoMover: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(3, 'V', st, 'MEDIA', '2026-11-01')] }, a);
+    expect(atalho(3)?.textContent).toBe('Mover para Abandonado');
+    atalho(3)!.click();
+    expect(a.aoMover).toHaveBeenCalledTimes(1);
+    expect(a.aoMover).toHaveBeenCalledWith(3, 'ABANDONADO');
+  });
+
+  it.each(['CONCLUIDO', 'ABANDONADO'] as const)('vencida em %s: não aparece', (st) => {
+    desenhar({ tipo: 'pronto', tarefas: [t(3, 'V', st, 'MEDIA', '2026-11-01')] });
+    expect(atalho(3)).toBeNull();
+  });
+
+  it('não vencida (vence hoje, futuro): não aparece', () => {
+    desenhar({
+      tipo: 'pronto',
+      tarefas: [t(1, 'H', 'FAZENDO', 'MEDIA', '2026-11-18'), t(2, 'F', 'IDEALIZADO', 'MEDIA', '2030-01-01')],
+    });
+    expect(atalho(1)).toBeNull();
+    expect(atalho(2)).toBeNull();
+  });
+});
