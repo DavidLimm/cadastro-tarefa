@@ -19,11 +19,11 @@ npm run dev:back     # terminal 1: API em http://localhost:8080
 npm run dev:front    # terminal 2: tela em http://localhost:5173
 ```
 
-Abra **http://localhost:5173** no navegador.
+Espere o segundo terminal mostrar a linha `Local: http://localhost:5173/` (o back não imprime nenhuma linha de "pronto"; ele só fica rodando). Aí abra **http://localhost:5173** no navegador.
 
 > Use sempre `localhost`. Com `http://127.0.0.1:5173` a página **não abre**, porque o Vite escuta em `localhost` (::1).
 
-Para parar, use Ctrl+C em cada terminal. (Para rodar o back em outra porta, por exemplo `PORT=8099 npm run dev:back`; o front continua esperando o back na 8080.)
+Para parar, use Ctrl+C em cada terminal. (Para rodar o back em outra porta: no Git Bash, `PORT=8099 npm run dev:back`; no PowerShell, `$env:PORT=8099; npm run dev:back`. O front continua esperando o back na 8080.)
 
 ## Como testar
 
@@ -74,7 +74,7 @@ Cada destaque aparece **também em texto e ícone**: a cor nunca é o único sin
 ## Como usar
 
 - **Adicionar**: botão "Adicionar tarefa". A tarefa cai em Idealizado.
-- **Editar**: clique no título do cartão. Abre "Editar tarefa" (título, prioridade, prazo e status). Salvar sem mudar nada só fecha.
+- **Editar**: clique no título do cartão (ou na área vazia dele). Abre "Editar tarefa" (título, prioridade, prazo e status). Salvar sem mudar nada só fecha.
 - **Excluir**: dentro de "Editar tarefa", botão "Excluir tarefa" e depois confirmação ("Cancelar" ou "Sim, excluir"). Não dá para desfazer.
 - **Mover por arrastar**: arraste o cartão para outra coluna (que fica com borda tracejada) e solte.
 - **Mover pelo teclado (ou sem arrastar)**: botão "Mover para…" no cartão. Tab até ele, Enter ou Espaço abre, Tab percorre as opções, Enter escolhe, Esc fecha. A coluna atual não aparece como opção.
@@ -199,14 +199,20 @@ Com back e front rodando (dois terminais), abra http://localhost:5173. **Reinici
 
 **Mover**
 
-12. Mover pelo menu **só com teclado** (sem mouse): Tab até "Mover para…" de um cartão, Enter abre (o botão anuncia "expandido"); Tab/Enter em "Fazendo". O cartão vai para Fazendo, o foco vai ao título dele e uma mensagem "«título» movido para Fazendo." é anunciada. Abra de novo e aperte Esc: fecha e o foco volta ao botão. A coluna atual não aparece como opção.
+12. Use um cartão que esteja em **Idealizado**. Mover pelo menu **só com teclado** (sem mouse): Tab até "Mover para…" de um cartão, Enter abre (o botão anuncia "expandido"); Tab/Enter em "Fazendo". O cartão vai para Fazendo, o foco vai ao título dele e uma mensagem "«título» movido para Fazendo." é anunciada. Abra de novo e aperte Esc: fecha e o foco volta ao botão. A coluna atual não aparece como opção.
 13. Com o menu de um cartão aberto, clique no "Mover para…" de **outro** cartão mais abaixo: o primeiro fecha e o segundo abre, num só clique.
 14. Mover por arrastar: arraste um cartão para outra coluna: a coluna ganha borda tracejada durante o arrasto, e ao soltar o cartão passa para ela.
 15. Soltar na **mesma coluna** (ou fora de qualquer coluna): nada acontece, o cartão fica onde estava.
 
 **Tarefa vencida e abandono**
 
-16. Não há como criar tarefa vencida (a criação recusa prazo passado) e o sistema não tem relógio de teste: o "hoje" da tela é o relógio do navegador, que usa o do computador. O jeito que existe de verdade: crie uma tarefa com **prazo de hoje**, **sem reiniciar o back** (a memória some), mude a **data do computador** para amanhã ou depois (Windows: Configurações > Hora e idioma > Data e hora, desligue "Definir a hora automaticamente") e dê F5. Ou simplesmente espere a data passar. Depois, volte a data para automático.
+16. Não há como criar tarefa vencida (a criação recusa prazo passado) e o sistema não tem relógio de teste: o "hoje" da tela é o relógio do navegador. O jeito **seguro** de ver o vencido, sem mexer no seu Windows: crie uma tarefa com **prazo de hoje** (sem reiniciar o back, a memória some), abra as ferramentas do navegador (F12 > aba Console), digite `allow pasting` e Enter (o Edge e o Chrome exigem isso antes de colar), cole a linha abaixo e dê Enter. Ela só adianta o relógio **desta aba** em 3 dias:
+
+    ```js
+    const D=Date;window.Date=class extends D{constructor(...a){a.length?super(...a):super(D.now()+3*864e5)} static now(){return D.now()+3*864e5}}
+    ```
+
+    Depois **mova um cartão** para o quadro se redesenhar: os selos viram "Atrasada 3d" e aparece o botão "Mover para Abandonado". Um **F5** desfaz tudo, e o servidor continua com a data real. Se preferir, é só esperar a data passar de verdade.
 17. Com a tarefa vencida em Idealizado ou Fazendo: selo "Atrasada 1d", borda vermelha sólida, fundo rosado e botão "Mover para Abandonado". O cartão **não** muda de coluna sozinho.
 18. Edite só o título dessa tarefa vencida: salva sem erro de prazo. Troque o prazo para outra data passada: erro no campo prazo.
 19. Clique em "Mover para Abandonado": o cartão vai para Abandonado, sem selo de prazo, sem borda e sem o botão. Mova uma vencida para Concluído: também sem selo de atraso.
