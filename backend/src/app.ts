@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
-import { validarNovaTarefa, type ErroCampo } from '../../shared/contrato.js';
+import { PRIORIDADES, validarNovaTarefa, type ErroCampo, type Tarefa } from '../../shared/contrato.js';
 import { TarefaRepositorioMemoria, type TarefaRepositorio } from './repositorio.js';
 
 export interface OpcoesApp {
@@ -13,6 +13,13 @@ function problema(resposta: FastifyReply, status: number, title: string, errors:
     .code(status)
     .type('application/problem+json')
     .send({ type: 'about:blank', title, status, ...(detail === undefined ? {} : { detail }), errors });
+}
+
+// Prazo (YYYY-MM-DD compara como texto), depois prioridade (ALTA primeiro), depois id.
+function compararTarefas(a: Tarefa, b: Tarefa): number {
+  if (a.prazo !== b.prazo) return a.prazo < b.prazo ? -1 : 1;
+  const porPrioridade = PRIORIDADES.indexOf(b.prioridade) - PRIORIDADES.indexOf(a.prioridade);
+  return porPrioridade !== 0 ? porPrioridade : a.id - b.id;
 }
 
 export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
@@ -40,6 +47,8 @@ export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
     const tarefa = repositorio.salvar(resultado.valor);
     return resposta.code(201).header('Location', `/api/tarefas/${tarefa.id}`).send(tarefa);
   });
+
+  app.get('/api/tarefas', async () => repositorio.listar().sort(compararTarefas));
 
   return app;
 }

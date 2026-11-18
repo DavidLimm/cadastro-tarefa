@@ -158,3 +158,53 @@ describe('POST /api/tarefas', () => {
     await b.close();
   });
 });
+
+describe('GET /api/tarefas', () => {
+  const agora = () => new Date(2026, 10, 18);
+
+  async function postar(app: ReturnType<typeof criarApp>, titulo: string, prioridade: string, prazo: string) {
+    const r = await app.inject({ method: 'POST', url: '/api/tarefas', payload: { titulo, prioridade, prazo } });
+    expect(r.statusCode).toBe(201);
+  }
+
+  it('sem tarefas devolve 200 e []', async () => {
+    const app = criarApp({ agora });
+    const resposta = await app.inject({ method: 'GET', url: '/api/tarefas' });
+    expect(resposta.statusCode).toBe(200);
+    expect(resposta.json()).toEqual([]);
+    await app.close();
+  });
+
+  it('ordena por prazo, depois prioridade (ALTA, MEDIA, BAIXA), depois id', async () => {
+    const app = criarApp({ agora });
+    await postar(app, 'a', 'BAIXA', '2026-12-01'); // id 1
+    await postar(app, 'b', 'ALTA', '2026-12-05'); // id 2
+    await postar(app, 'c', 'MEDIA', '2026-12-01'); // id 3
+    await postar(app, 'd', 'BAIXA', '2026-11-20'); // id 4
+    await postar(app, 'e', 'ALTA', '2026-12-01'); // id 5
+    await postar(app, 'f', 'MEDIA', '2026-12-01'); // id 6
+    const resposta = await app.inject({ method: 'GET', url: '/api/tarefas' });
+    expect(resposta.statusCode).toBe(200);
+    const ids = resposta.json().map((t: { id: number }) => t.id);
+    expect(ids).toEqual([4, 5, 3, 6, 1, 2]);
+    await app.close();
+  });
+
+  it('ordena ids numericamente (10 depois de 9)', async () => {
+    const app = criarApp({ agora });
+    for (let i = 0; i < 10; i++) await postar(app, `t${i}`, 'ALTA', '2026-12-01');
+    const resposta = await app.inject({ method: 'GET', url: '/api/tarefas' });
+    expect(resposta.json().map((t: { id: number }) => t.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    await app.close();
+  });
+
+  it('50 POSTs simultâneos e depois GET devolve 50 tarefas com ids únicos', async () => {
+    const app = criarApp({ agora });
+    await Promise.all(Array.from({ length: 50 }, (_, i) => postar(app, `Tarefa ${i}`, 'MEDIA', '2026-12-01')));
+    const resposta = await app.inject({ method: 'GET', url: '/api/tarefas' });
+    const tarefas: { id: number }[] = resposta.json();
+    expect(tarefas).toHaveLength(50);
+    expect(new Set(tarefas.map((t) => t.id)).size).toBe(50);
+    await app.close();
+  });
+});
