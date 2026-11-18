@@ -6,10 +6,11 @@
   "workspaces": ["backend", "frontend"],
   "scripts": {
     "dev:back": "npm run dev -w backend",
-    "test": "npm test --workspaces --if-present",
+    "test": "vitest run --root shared && npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
-    "typescript": "^6.0.0"
+    "typescript": "^6.0.0",
+    "vitest": "~4.1.0"
   }
 }
