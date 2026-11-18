@@ -165,3 +165,30 @@ describe('foco depois de redesenhar', () => {
     expect(document.activeElement).toBe(document.body);
   });
 });
+
+describe('contador do título acessível', () => {
+  const nomeAcessivel = () => {
+    const h1 = raiz.querySelector('h1');
+    if (!h1) throw new Error('sem h1');
+    // aria-hidden fica fora do nome acessível; o resto (inclusive texto só para leitor de tela) entra.
+    return [...h1.childNodes]
+      .filter((n) => !(n instanceof HTMLElement && n.getAttribute('aria-hidden') === 'true'))
+      .map((n) => n.textContent)
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  it('lê "Tarefas 5 tarefas" em vez de "Tarefas 5"', () => {
+    desenhar({ tipo: 'pronto', tarefas: [1, 2, 3, 4, 5].map((i) => t(i, `T${i}`, 'ALTA')) });
+    expect(nomeAcessivel()).toBe('Tarefas 5 tarefas');
+    expect(raiz.querySelector('h1 .contador')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('singular para 1 tarefa e plural para 0', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(1, 'A', 'ALTA')] });
+    expect(nomeAcessivel()).toBe('Tarefas 1 tarefa');
+    desenhar({ tipo: 'pronto', tarefas: [] });
+    expect(nomeAcessivel()).toBe('Tarefas 0 tarefas');
+  });
+});

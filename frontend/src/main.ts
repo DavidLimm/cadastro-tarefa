@@ -1,3 +1,4 @@
+import './estilo.css';
 import { criarTarefa, listarTarefas } from './api.js';
 import { criarDialogo } from './dialogo.js';
 import { TITULO_PAGINA } from './inicio.js';

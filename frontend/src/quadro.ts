@@ -64,7 +64,12 @@ function coluna(doc: Document, prioridade: Prioridade, tarefas: Tarefa[]): HTMLE
 function cabecalho(doc: Document, total: number | undefined, acoes: AcoesQuadro): HTMLElement {
   const cab = el(doc, 'header', 'cabecalho');
   const h1 = el(doc, 'h1', undefined, TITULO_PAGINA);
-  if (total !== undefined) h1.append(' ', el(doc, 'span', 'contador', String(total)));
+  if (total !== undefined) {
+    // O número visual fica fora do nome acessível; o leitor de tela lê "5 tarefas" (singular: "1 tarefa").
+    const contador = el(doc, 'span', 'contador', String(total));
+    contador.setAttribute('aria-hidden', 'true');
+    h1.append(' ', contador, el(doc, 'span', 'so-leitor', `${total} ${total === 1 ? 'tarefa' : 'tarefas'}`));
+  }
   cab.append(h1, botao(doc, 'Adicionar tarefa', 'botao-primario', 'adicionar', acoes.aoAdicionar));
   return cab;
 }
