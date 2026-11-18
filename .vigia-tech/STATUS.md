@@ -1,9 +1,9 @@
 # STATUS — cadastro-tarefas
 
 ## Para retomar
-- Tarefa atual: cadastro-tarefas-v1 — PRONTA, aguardando revisão do David (PR/branch).
-- Branch: `vigia/cadastro-tarefas-v1`   PR: — (sem remoto GitHub; ver Histórico)
-- Próximo passo: David revisa e decide merge na main. Se recusar, ele diz o motivo → `aprender-licao` → `dev` corrige → `qa`.
+- Tarefa atual: kanban-status-v2 — construção (dev ⇄ qa). Spec aprovada pelo David (2026-11-18). v1 pronta na branch vigia/cadastro-tarefas-v1 (sem remoto GitHub).
+- Branch: `vigia/kanban-status-v2` (criada a partir da v1)   PR: —
+- Próximo passo: T-01 e T-02 da v2 em andamento (dev); depois qa; T-03..T-13 em ordem. No fim: mapeador (atualizar MAPA), abrir-pr (sem remoto: commit local e avisar).
 - Bloqueios / perguntas em aberto: nenhum. Pendências conhecidas e aceitas:
   - npm audit: 5 high só em devDeps (picomatch → vitest/vite); 0 em produção. Rever quando houver versão corrigida.
   - 2 casts `{} as Record<...>` em frontend/src/dialogo.ts:52-53 (contra a convenção "sem as"; sem risco prático).
@@ -13,6 +13,7 @@
   - Ideias v2: editar/excluir/concluir, banco (trocar TarefaRepositorio), filtros.
 
 ## Histórico (mais recente primeiro, 1 linha por evento)
+- 2026-11-18 — Spec da v2 aprovada pelo David; ADRs 0006–0010 aceitos
 - 2026-11-18 — MAPA.md gerado; ADRs 0002–0005 aceitos; README ajustado conforme qa
 - 2026-11-18 — T-11 e ajustes finais aprovados pelo qa (053bd26, 7bfb05f); E2E de 13 passos passou
 - 2026-11-18 — T-09/T-10 aprovadas pelo qa (d995461, 0ec4959)
