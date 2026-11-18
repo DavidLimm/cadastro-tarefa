@@ -524,6 +524,22 @@ describe('arrastar e soltar (HTML5 nativo, eventos sintéticos)', () => {
     expect(dt.effectAllowed).toBe('move');
   });
 
+  it('o cartão arrastado ganha data-arrastando (depois do instantâneo do navegador) e dragend remove', () => {
+    vi.useFakeTimers();
+    try {
+      montar();
+      dispara(cart(1), 'dragstart');
+      expect(cart(1).hasAttribute('data-arrastando')).toBe(false); // o fantasma do navegador sai sem o esmaecido
+      vi.runAllTimers();
+      expect(cart(1).hasAttribute('data-arrastando')).toBe(true);
+      expect(cart(2).hasAttribute('data-arrastando')).toBe(false);
+      dispara(cart(1), 'dragend');
+      expect(cart(1).hasAttribute('data-arrastando')).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('drop em outra coluna chama aoMover(id, status) uma vez', () => {
     const a = montar();
     dispara(cart(1), 'dragstart');

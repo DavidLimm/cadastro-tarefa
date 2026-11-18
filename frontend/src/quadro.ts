@@ -66,11 +66,13 @@ let arrastado: { id: number; origem: Status } | undefined;
 // Profundidade de dragenter/dragleave por coluna: entrar num filho dispara dragleave no pai, e sem contar a marca piscaria.
 const profundidade = new WeakMap<HTMLElement, number>();
 const ATRIBUTO_ALVO = 'data-alvo-arrasto'; // o visual (borda tracejada) é do estilo.css
+const ATRIBUTO_ARRASTANDO = 'data-arrastando'; // idem: cartão esmaecido enquanto é arrastado
 
 function limparArrasto(raiz: ParentNode): void {
   arrastado = undefined;
   for (const col of raiz.querySelectorAll<HTMLElement>(`[${ATRIBUTO_ALVO}]`)) col.removeAttribute(ATRIBUTO_ALVO);
   for (const col of raiz.querySelectorAll<HTMLElement>('.coluna')) profundidade.delete(col);
+  for (const c of raiz.querySelectorAll<HTMLElement>(`[${ATRIBUTO_ARRASTANDO}]`)) c.removeAttribute(ATRIBUTO_ARRASTANDO);
 }
 
 function cartao(doc: Document, tarefa: Tarefa, hoje: string, acoes: AcoesQuadro): HTMLElement {
@@ -88,6 +90,10 @@ function cartao(doc: Document, tarefa: Tarefa, hoje: string, acoes: AcoesQuadro)
       dt.setData('text/plain', String(tarefa.id));
       dt.effectAllowed = 'move';
     }
+    // Só depois do instantâneo que o navegador tira no dragstart; marcar já esmaeceria também a imagem arrastada.
+    setTimeout(() => {
+      if (arrastado?.id === tarefa.id) c.setAttribute(ATRIBUTO_ARRASTANDO, '');
+    }, 0);
   });
   c.addEventListener('dragend', () => limparArrasto(c.ownerDocument));
   const editar = () => acoes.aoEditar?.(tarefa.id);
