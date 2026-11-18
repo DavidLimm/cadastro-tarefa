@@ -1,9 +1,9 @@
 # STATUS — cadastro-tarefas
 
 ## Para retomar
-- Tarefa atual: kanban-status-v2 — PRONTA e aprovada pelo qa; aguardando revisão do David.
-- Branch: `vigia/kanban-status-v2` (criada a partir de `vigia/cadastro-tarefas-v1`; nenhuma das duas mesclada na `main`)   PR: — (sem remoto GitHub)
-- Próximo passo: David revisa. Se aprovar: decidir (1) criar repositório no GitHub (público/privado) e abrir PR da v1+v2, ou (2) mesclar localmente na main. Se recusar, ele diz o motivo → `aprender-licao` → `dev` corrige → `qa`.
+- Tarefa atual: kanban-status-v2 — PR #1 ABERTO, aguardando revisão do David.
+- Branch: `vigia/kanban-status-v2`   PR: https://github.com/DavidLimm/cadastro-tarefa/pull/1 (v1 + v2 → main)
+- Próximo passo: David revisa o PR #1. Se aprovar, ele faz o merge (eu nunca faço). Se recusar, ele diz o motivo → `aprender-licao` → `dev` corrige → `qa` → atualizar o mesmo PR.
 - Bloqueios / perguntas em aberto: nenhum. Pendências conhecidas e aceitas:
   - npm audit: 0 vulnerabilidades hoje (18/11/2026); na v1 eram 5 high só em devDeps. Depende do banco de avisos; rodar de vez em quando.
   - Casts reais restantes (benignos): `ev as DragEvent` em frontend/src/quadro.ts:88 e `as [number, number]` em frontend/src/contraste.pares.ts:95.
@@ -15,6 +15,7 @@
   - Ideias futuras: banco no lugar do repositório em memória, reordenação manual, busca/filtros, status configuráveis.
 
 ## Histórico (mais recente primeiro, 1 linha por evento)
+- 2026-11-18 — Remoto conectado (github.com/DavidLimm/cadastro-tarefa, público); main remota sobrescrita com --force-with-lease a pedido do David (só tinha LICENSE MIT, preservada em 1f6cd47); PR #1 aberto
 - 2026-11-18 — v2 fechada: qa APROVADO (U-1 corrigido, roteiro de 28 passos, contraste AA recalculado); MAPA.md atualizado; README ajustado (bec2600)
 - 2026-11-18 — Spec da v2 aprovada pelo David; ADRs 0006–0010 aceitos; construção v2/T-01..T-13 com dev ⇄ qa
 - 2026-11-18 — v1 aprovada pelo qa (E2E de 13 passos); MAPA.md da v1; sem remoto GitHub
