@@ -1,0 +1,23 @@
+{
+  "name": "cadastro-tarefas",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:back": "npm run dev -w backend",
+    "dev:front": "npm run dev -w frontend",
+    "build": "npm run build -w frontend",
+    "test": "vitest run --root shared && npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0",
+    "vitest": "~4.1.0"
+  }
+}

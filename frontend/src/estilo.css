@@ -1,0 +1,329 @@
+/* Estilo inspirado em ideias/Copy-of-novo-funil-1-tela-menor-1.png: fundo cinza-claro, cartões brancos
+   arredondados com sombra leve, cabeçalho de coluna em caixa alta, botão primário roxo. Fontes do sistema. */
+
+:root {
+  --fundo: #eef0f6;
+  --superficie: #ffffff;
+  --texto: #1f2340;
+  --texto-suave: #5a6078; /* 5,5:1 sobre o fundo cinza (mais sobre branco) */
+  --linha: #d5d9e6;
+  --roxo: #5b3fd9; /* branco sobre roxo: 6,6:1 */
+  --roxo-escuro: #4a30b8;
+  --roxo-fundo: #ece8fc;
+  --foco: #1d4ed8;
+  --perigo: #b42318;
+  --sombra: 0 1px 3px rgb(31 35 64 / 14%), 0 1px 2px rgb(31 35 64 / 8%);
+  --raio: 8px;
+
+  /* Selos: texto escuro sobre fundo claro (todos acima de 7:1). */
+  --alta-fundo: #fde4e4;
+  --alta-texto: #8f1d1d;
+  --media-fundo: #fdefc3;
+  --media-texto: #6b4200;
+  --baixa-fundo: #d8f3e2;
+  --baixa-texto: #11593a;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--texto);
+  background: var(--fundo);
+  line-height: 1.4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fundo);
+}
+
+#app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 24px 40px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+}
+
+/* Texto só para leitor de tela */
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Cabeçalho da página: título + selo de contagem, botão primário à direita */
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--linha);
+}
+
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--roxo-escuro);
+}
+
+h1 .contador {
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: #3b3a6b;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Botões */
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.botao-primario,
+.botao-secundario {
+  min-height: 40px;
+  padding: 8px 18px;
+  border-radius: var(--raio);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.botao-primario {
+  background: var(--roxo);
+  color: #fff;
+}
+
+.botao-primario:hover:not(:disabled) {
+  background: var(--roxo-escuro);
+}
+
+.botao-primario:disabled {
+  background: #6b6f86; /* branco sobre este cinza: 4,9:1 */
+  cursor: progress;
+}
+
+.botao-secundario {
+  background: var(--superficie);
+  color: var(--roxo-escuro);
+  border-color: var(--linha);
+}
+
+.botao-secundario:hover {
+  background: var(--roxo-fundo);
+}
+
+/* Quadro e colunas */
+.quadro {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.coluna-cabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.coluna h2 {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--texto);
+}
+
+.coluna .contador {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.vazio,
+.vazio-geral,
+.carregando {
+  color: var(--texto-suave);
+}
+
+.vazio {
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--linha);
+  border-radius: var(--raio);
+}
+
+/* Cartões */
+.cartao {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  background: var(--superficie);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+
+.cartao-titulo {
+  max-width: 100%;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  overflow-wrap: anywhere; /* título de 100 caracteres sem espaço não gera rolagem horizontal */
+}
+
+.prazo {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.selo {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.selo-alta {
+  background: var(--alta-fundo);
+  color: var(--alta-texto);
+}
+
+.selo-media {
+  background: var(--media-fundo);
+  color: var(--media-texto);
+}
+
+.selo-baixa {
+  background: var(--baixa-fundo);
+  color: var(--baixa-texto);
+}
+
+/* Erro ao carregar */
+.erro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  background: #fff1f0;
+  border: 1px solid #f3b8b3;
+  border-radius: var(--raio);
+  color: var(--perigo);
+}
+
+.erro p {
+  margin: 0;
+}
+
+/* Diálogo de cadastro */
+.dialogo {
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--superficie);
+  color: var(--texto);
+  box-shadow: 0 10px 40px rgb(31 35 64 / 30%);
+}
+
+.dialogo::backdrop {
+  background: rgb(31 35 64 / 50%);
+}
+
+.dialogo h2 {
+  margin: 0 0 16px;
+  font-size: 1.2rem;
+  color: var(--roxo-escuro);
+}
+
+.campo {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.campo label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.campo input,
+.campo select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid #8a90a8; /* 3,3:1 sobre branco (componente de formulário) */
+  border-radius: 6px;
+}
+
+.campo [aria-invalid='true'] {
+  border-color: var(--perigo);
+  border-width: 2px;
+}
+
+.erro-campo,
+.erro-geral {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--perigo);
+}
+
+.erro-campo:empty,
+.erro-geral:empty {
+  display: none;
+}
+
+.erro-geral {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: #fff1f0;
+  border-radius: 6px;
+}
+
+.dialogo-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Telas estreitas (bônus): colunas empilhadas */
+@media (max-width: 760px) {
+  #app {
+    padding: 14px 12px 32px;
+  }
+
+  .quadro {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  h1 {
+    font-size: 1.25rem;
+  }
+}

@@ -1,2 +1,5 @@
 ideias/
 .env
+node_modules/
+dist/
+coverage/
