@@ -1,5 +1,8 @@
-import type { Prioridade, Tarefa } from '../../shared/contrato.js';
-import { TITULO_PAGINA, prioridadesDaTela } from './inicio.js';
+import type { Status, Tarefa } from '../../shared/contrato.js';
+import { diaLocal } from '../../shared/prazo.js';
+import { descreverCartao, type Selo } from './cartao.js';
+import { criarIcone } from './icones.js';
+import { ROTULOS_STATUS, TITULO_PAGINA, statusDaTela } from './inicio.js';
 
 export type EstadoQuadro =
   | { tipo: 'carregando' }
@@ -10,9 +13,9 @@ export interface AcoesQuadro {
   aoRecarregar: () => void;
   /** Gancho da T-09: abrir o diálogo de cadastro. Sem ação até lá. */
   aoAdicionar?: () => void;
+  /** Relógio injetável (testes). Padrão: a hora do navegador; o "hoje" dos selos é a data local. */
+  hoje?: () => Date;
 }
-
-const ROTULOS: Record<Prioridade, string> = { ALTA: 'Alta', MEDIA: 'Média', BAIXA: 'Baixa' };
 
 /** AAAA-MM-DD -> dd/mm/aaaa por texto (Date/UTC deslocaria o dia no fuso do Brasil). */
 export function formatarPrazo(prazo: string): string {
@@ -40,24 +43,48 @@ function botao(doc: Document, texto: string, classe: string, foco: string, aoCli
   return b;
 }
 
-function cartao(doc: Document, tarefa: Tarefa): HTMLElement {
+function contagem(doc: Document, n: number): Node[] {
+  // O número visual fica fora do nome acessível; o leitor de tela lê "5 tarefas" (singular: "1 tarefa").
+  const visual = el(doc, 'span', 'contador', String(n));
+  visual.setAttribute('aria-hidden', 'true');
+  return [visual, el(doc, 'span', 'so-leitor', `${n} ${n === 1 ? 'tarefa' : 'tarefas'}`)];
+}
+
+function selo(doc: Document, tipo: 'prioridade' | 'prazo', s: Selo<string>): HTMLElement {
+  const e = el(doc, 'span', `selo selo-${tipo} selo-${s.tom}`);
+  e.append(criarIcone(doc, s.icone), el(doc, 'span', 'selo-texto', s.texto));
+  return e;
+}
+
+function cartao(doc: Document, tarefa: Tarefa, hoje: string): HTMLElement {
+  const d = descreverCartao(tarefa, hoje);
   const c = el(doc, 'article', 'cartao');
-  c.append(
-    el(doc, 'h3', 'cartao-titulo', tarefa.titulo),
-    el(doc, 'span', `selo selo-${tarefa.prioridade.toLowerCase()}`, ROTULOS[tarefa.prioridade]),
-    el(doc, 'p', 'prazo', `Prazo: ${formatarPrazo(tarefa.prazo)}`),
-  );
+  c.dataset.id = String(tarefa.id);
+  c.dataset.status = tarefa.status;
+  c.dataset.urgencia = d.urgencia; // o CSS (T-12) pinta a borda esquerda a partir daqui
+  const titulo = botao(doc, tarefa.titulo, 'cartao-titulo', `cartao-${tarefa.id}`); // abrir edição: T-09
+  const selos = el(doc, 'div', 'cartao-selos');
+  selos.append(selo(doc, 'prioridade', d.prioridade));
+  if (d.prazo) selos.append(selo(doc, 'prazo', d.prazo));
+  const h3 = el(doc, 'h3', 'cartao-cabecalho');
+  h3.append(titulo);
+  c.append(h3, selos, el(doc, 'p', 'prazo', `Prazo: ${formatarPrazo(tarefa.prazo)}`));
+  // Sugestão, nunca ação automática; o clique é ligado na T-10.
+  if (d.sugerirAbandono) c.append(botao(doc, 'Mover para Abandonado', 'botao-abandonar', `abandonar-${tarefa.id}`));
   return c;
 }
 
-function coluna(doc: Document, prioridade: Prioridade, tarefas: Tarefa[]): HTMLElement {
+function coluna(doc: Document, status: Status, tarefas: Tarefa[], hoje: string): HTMLElement {
   const sec = el(doc, 'section', 'coluna');
-  sec.dataset.prioridade = prioridade;
+  sec.dataset.status = status;
   const cab = el(doc, 'header', 'coluna-cabecalho');
-  cab.append(el(doc, 'h2', undefined, ROTULOS[prioridade]), el(doc, 'span', 'contador', String(tarefas.length)));
-  sec.append(cab);
-  if (tarefas.length === 0) sec.append(el(doc, 'p', 'vazio', 'Nenhuma tarefa'));
-  for (const t of tarefas) sec.append(cartao(doc, t));
+  const h2 = el(doc, 'h2');
+  h2.append(el(doc, 'span', 'coluna-nome', ROTULOS_STATUS[status]), ' ', ...contagem(doc, tarefas.length));
+  cab.append(h2);
+  const lista = el(doc, 'div', 'coluna-cartoes'); // a rolagem vertical é desta lista (CSS na T-12)
+  if (tarefas.length === 0) lista.append(el(doc, 'p', 'vazio', 'Nenhuma tarefa'));
+  for (const t of tarefas) lista.append(cartao(doc, t, hoje));
+  sec.append(cab, lista);
   return sec;
 }
 
@@ -65,10 +92,7 @@ function cabecalho(doc: Document, total: number | undefined, acoes: AcoesQuadro)
   const cab = el(doc, 'header', 'cabecalho');
   const h1 = el(doc, 'h1', undefined, TITULO_PAGINA);
   if (total !== undefined) {
-    // O número visual fica fora do nome acessível; o leitor de tela lê "5 tarefas" (singular: "1 tarefa").
-    const contador = el(doc, 'span', 'contador', String(total));
-    contador.setAttribute('aria-hidden', 'true');
-    h1.append(' ', contador, el(doc, 'span', 'so-leitor', `${total} ${total === 1 ? 'tarefa' : 'tarefas'}`));
+    h1.append(' ', ...contagem(doc, total));
   }
   cab.append(h1, botao(doc, 'Adicionar tarefa', 'botao-primario', 'adicionar', acoes.aoAdicionar));
   return cab;
@@ -103,8 +127,9 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
     filhos.push(cabecalho(doc, total, acoes));
     if (total === 0) filhos.push(el(doc, 'p', 'vazio-geral', 'Nenhuma tarefa cadastrada ainda.'));
     const quadro = el(doc, 'main', 'quadro');
-    for (const p of prioridadesDaTela()) {
-      quadro.append(coluna(doc, p, estado.tarefas.filter((t) => t.prioridade === p)));
+    const hoje = diaLocal((acoes.hoje ?? (() => new Date()))());
+    for (const status of statusDaTela()) {
+      quadro.append(coluna(doc, status, estado.tarefas.filter((t) => t.status === status), hoje));
     }
     filhos.push(quadro);
   }
