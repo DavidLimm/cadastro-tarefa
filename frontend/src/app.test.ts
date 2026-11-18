@@ -28,7 +28,14 @@ describe('iniciar: ligação entre quadro, diálogo e API', () => {
       tarefas = [nova];
       return { ok: true, tarefa: nova };
     });
-    iniciar(raiz, document, { listarTarefas, criarTarefa });
+    // Este teste é do fluxo de criação: editar/excluir ficam sem uso.
+    const atualizarTarefa = vi.fn(async (): Promise<never> => {
+      throw new Error('não deveria ser chamada');
+    });
+    const excluirTarefa = vi.fn(async (): Promise<never> => {
+      throw new Error('não deveria ser chamada');
+    });
+    iniciar(raiz, document, { listarTarefas, criarTarefa, atualizarTarefa, excluirTarefa });
     await esperar();
 
     raiz.querySelector<HTMLButtonElement>('[data-foco="adicionar"]')!.click();

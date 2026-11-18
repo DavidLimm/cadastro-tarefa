@@ -323,3 +323,27 @@ describe('contador do título acessível', () => {
     expect(nomeAcessivel()).toBe('Tarefas 0 tarefas');
   });
 });
+
+describe('abrir edição pelo cartão', () => {
+  it('clicar no botão-título chama aoEditar com o id uma só vez', () => {
+    const a = { ...acoes(), aoEditar: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(7, 'Pagar', 'IDEALIZADO'), t(8, 'Outra', 'FAZENDO')] }, a);
+    cartaoDe(7).querySelector<HTMLButtonElement>('.cartao-titulo')?.click();
+    expect(a.aoEditar).toHaveBeenCalledTimes(1);
+    expect(a.aoEditar).toHaveBeenCalledWith(7);
+  });
+
+  it('clicar numa área vazia do cartão também abre a edição', () => {
+    const a = { ...acoes(), aoEditar: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(7, 'Pagar', 'IDEALIZADO')] }, a);
+    cartaoDe(7).querySelector<HTMLElement>('.prazo')?.click();
+    expect(a.aoEditar).toHaveBeenCalledWith(7);
+  });
+
+  it('clicar em outro botão do cartão (sugestão de abandono) não abre a edição', () => {
+    const a = { ...acoes(), aoEditar: vi.fn() };
+    desenhar({ tipo: 'pronto', tarefas: [t(7, 'Velha', 'FAZENDO', 'MEDIA', '2026-11-01')] }, a);
+    cartaoDe(7).querySelector<HTMLButtonElement>('.botao-abandonar')?.click();
+    expect(a.aoEditar).not.toHaveBeenCalled();
+  });
+});

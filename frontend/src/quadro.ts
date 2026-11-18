@@ -13,6 +13,8 @@ export interface AcoesQuadro {
   aoRecarregar: () => void;
   /** Gancho da T-09: abrir o diálogo de cadastro. Sem ação até lá. */
   aoAdicionar?: () => void;
+  /** Abrir o diálogo de edição do cartão (clique no título ou em área vazia do cartão). */
+  aoEditar?: (id: number) => void;
   /** Relógio injetável (testes). Padrão: a hora do navegador; o "hoje" dos selos é a data local. */
   hoje?: () => Date;
 }
@@ -56,13 +58,18 @@ function selo(doc: Document, tipo: 'prioridade' | 'prazo', s: Selo<string>): HTM
   return e;
 }
 
-function cartao(doc: Document, tarefa: Tarefa, hoje: string): HTMLElement {
+function cartao(doc: Document, tarefa: Tarefa, hoje: string, acoes: AcoesQuadro): HTMLElement {
   const d = descreverCartao(tarefa, hoje);
   const c = el(doc, 'article', 'cartao');
   c.dataset.id = String(tarefa.id);
   c.dataset.status = tarefa.status;
   c.dataset.urgencia = d.urgencia; // o CSS (T-12) pinta a borda esquerda a partir daqui
-  const titulo = botao(doc, tarefa.titulo, 'cartao-titulo', `cartao-${tarefa.id}`); // abrir edição: T-09
+  const editar = () => acoes.aoEditar?.(tarefa.id);
+  const titulo = botao(doc, tarefa.titulo, 'cartao-titulo', `cartao-${tarefa.id}`, editar);
+  // Área vazia do cartão também abre a edição; cliques em botões (título, sugestão) têm ação própria.
+  c.addEventListener('click', (ev) => {
+    if (!(ev.target instanceof Element) || ev.target.closest('button') === null) editar();
+  });
   const selos = el(doc, 'div', 'cartao-selos');
   selos.append(selo(doc, 'prioridade', d.prioridade));
   if (d.prazo) selos.append(selo(doc, 'prazo', d.prazo));
@@ -74,7 +81,7 @@ function cartao(doc: Document, tarefa: Tarefa, hoje: string): HTMLElement {
   return c;
 }
 
-function coluna(doc: Document, status: Status, tarefas: Tarefa[], hoje: string): HTMLElement {
+function coluna(doc: Document, status: Status, tarefas: Tarefa[], hoje: string, acoes: AcoesQuadro): HTMLElement {
   const sec = el(doc, 'section', 'coluna');
   sec.dataset.status = status;
   const cab = el(doc, 'header', 'coluna-cabecalho');
@@ -83,7 +90,7 @@ function coluna(doc: Document, status: Status, tarefas: Tarefa[], hoje: string):
   cab.append(h2);
   const lista = el(doc, 'div', 'coluna-cartoes'); // a rolagem vertical é desta lista (CSS na T-12)
   if (tarefas.length === 0) lista.append(el(doc, 'p', 'vazio', 'Nenhuma tarefa'));
-  for (const t of tarefas) lista.append(cartao(doc, t, hoje));
+  for (const t of tarefas) lista.append(cartao(doc, t, hoje, acoes));
   sec.append(cab, lista);
   return sec;
 }
@@ -129,7 +136,7 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
     const quadro = el(doc, 'main', 'quadro');
     const hoje = diaLocal((acoes.hoje ?? (() => new Date()))());
     for (const status of statusDaTela()) {
-      quadro.append(coluna(doc, status, estado.tarefas.filter((t) => t.status === status), hoje));
+      quadro.append(coluna(doc, status, estado.tarefas.filter((t) => t.status === status), hoje, acoes));
     }
     filhos.push(quadro);
   }
