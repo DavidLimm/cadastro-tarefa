@@ -13,8 +13,8 @@ describe('GET /api/saude', () => {
 });
 
 describe('POST /api/tarefas', () => {
-  const agora = () => new Date(2026, 10, 18);
-  const valida = { titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2026-11-20' };
+  const agora = () => new Date(2030, 5, 15);
+  const valida = { titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20' };
 
   async function postar(corpo: unknown, app = criarApp({ agora })) {
     const resposta = await app.inject({ method: 'POST', url: '/api/tarefas', payload: JSON.stringify(corpo), headers: { 'content-type': 'application/json' } });
@@ -33,7 +33,7 @@ describe('POST /api/tarefas', () => {
     const { app, resposta } = await postar({ ...valida, titulo: '  Pagar conta  ' });
     expect(resposta.statusCode).toBe(201);
     expect(resposta.headers.location).toBe('/api/tarefas/1');
-    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2026-11-20' });
+    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20' });
     await app.close();
   });
 
@@ -63,7 +63,7 @@ describe('POST /api/tarefas', () => {
 
   it('prazo ausente, formato errado e data inexistente -> 400 no campo prazo', async () => {
     const app = criarApp({ agora });
-    for (const prazo of [undefined, '20/11/2026', '2026-02-30']) {
+    for (const prazo of [undefined, '20/06/2030', '2030-02-30']) {
       const { resposta } = await postar({ ...valida, prazo }, app);
       expect(resposta.statusCode).toBe(400);
       expect(camposComErro(resposta)).toEqual(['prazo']);
@@ -73,10 +73,10 @@ describe('POST /api/tarefas', () => {
 
   it('prazo de ontem é rejeitado e o de hoje é aceito', async () => {
     const app = criarApp({ agora });
-    const ontem = await postar({ ...valida, prazo: '2026-11-17' }, app);
+    const ontem = await postar({ ...valida, prazo: '2030-06-14' }, app);
     expect(ontem.resposta.statusCode).toBe(400);
     expect(camposComErro(ontem.resposta)).toEqual(['prazo']);
-    const hoje = await postar({ ...valida, prazo: '2026-11-18' }, app);
+    const hoje = await postar({ ...valida, prazo: '2030-06-15' }, app);
     expect(hoje.resposta.statusCode).toBe(201);
     await app.close();
   });
@@ -131,7 +131,7 @@ describe('POST /api/tarefas', () => {
   it('campos extras são ignorados', async () => {
     const { app, resposta } = await postar({ ...valida, id: 99, admin: true });
     expect(resposta.statusCode).toBe(201);
-    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2026-11-20' });
+    expect(resposta.json()).toEqual({ id: 1, titulo: 'Pagar conta', prioridade: 'ALTA', prazo: '2030-06-20' });
     await app.close();
   });
 
@@ -160,7 +160,7 @@ describe('POST /api/tarefas', () => {
 });
 
 describe('GET /api/tarefas', () => {
-  const agora = () => new Date(2026, 10, 18);
+  const agora = () => new Date(2030, 5, 15);
 
   async function postar(app: ReturnType<typeof criarApp>, titulo: string, prioridade: string, prazo: string) {
     const r = await app.inject({ method: 'POST', url: '/api/tarefas', payload: { titulo, prioridade, prazo } });
@@ -177,12 +177,12 @@ describe('GET /api/tarefas', () => {
 
   it('ordena por prazo, depois prioridade (ALTA, MEDIA, BAIXA), depois id', async () => {
     const app = criarApp({ agora });
-    await postar(app, 'a', 'BAIXA', '2026-12-01'); // id 1
-    await postar(app, 'b', 'ALTA', '2026-12-05'); // id 2
-    await postar(app, 'c', 'MEDIA', '2026-12-01'); // id 3
-    await postar(app, 'd', 'BAIXA', '2026-11-20'); // id 4
-    await postar(app, 'e', 'ALTA', '2026-12-01'); // id 5
-    await postar(app, 'f', 'MEDIA', '2026-12-01'); // id 6
+    await postar(app, 'a', 'BAIXA', '2030-07-01'); // id 1
+    await postar(app, 'b', 'ALTA', '2030-07-05'); // id 2
+    await postar(app, 'c', 'MEDIA', '2030-07-01'); // id 3
+    await postar(app, 'd', 'BAIXA', '2030-06-20'); // id 4
+    await postar(app, 'e', 'ALTA', '2030-07-01'); // id 5
+    await postar(app, 'f', 'MEDIA', '2030-07-01'); // id 6
     const resposta = await app.inject({ method: 'GET', url: '/api/tarefas' });
     expect(resposta.statusCode).toBe(200);
     const ids = resposta.json().map((t: { id: number }) => t.id);
@@ -192,7 +192,7 @@ describe('GET /api/tarefas', () => {
 
   it('ordena ids numericamente (10 depois de 9)', async () => {
     const app = criarApp({ agora });
-    for (let i = 0; i < 10; i++) await postar(app, `t${i}`, 'ALTA', '2026-12-01');
+    for (let i = 0; i < 10; i++) await postar(app, `t${i}`, 'ALTA', '2030-07-01');
     const resposta = await app.inject({ method: 'GET', url: '/api/tarefas' });
     expect(resposta.json().map((t: { id: number }) => t.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     await app.close();
@@ -200,11 +200,47 @@ describe('GET /api/tarefas', () => {
 
   it('50 POSTs simultâneos e depois GET devolve 50 tarefas com ids únicos', async () => {
     const app = criarApp({ agora });
-    await Promise.all(Array.from({ length: 50 }, (_, i) => postar(app, `Tarefa ${i}`, 'MEDIA', '2026-12-01')));
+    await Promise.all(Array.from({ length: 50 }, (_, i) => postar(app, `Tarefa ${i}`, 'MEDIA', '2030-07-01')));
     const resposta = await app.inject({ method: 'GET', url: '/api/tarefas' });
     const tarefas: { id: number }[] = resposta.json();
     expect(tarefas).toHaveLength(50);
     expect(new Set(tarefas.map((t) => t.id)).size).toBe(50);
+    await app.close();
+  });
+});
+
+describe('rotas inexistentes e erros de corpo', () => {
+  it.each([
+    ['GET', '/api/nao-existe'],
+    ['PUT', '/api/tarefas'],
+    ['DELETE', '/api/tarefas'],
+  ] as const)('%s %s -> 404 problem+json em pt-BR', async (method, url) => {
+    const app = criarApp();
+    const resposta = await app.inject({ method, url });
+    expect(resposta.statusCode).toBe(404);
+    expect(resposta.headers['content-type']).toContain('application/problem+json');
+    expect(resposta.json()).toEqual({ type: 'about:blank', title: 'Recurso não encontrado', status: 404, errors: [] });
+    await app.close();
+  });
+
+  it('corpo JSON quebrado -> detail em pt-BR, sem texto cru do Fastify', async () => {
+    const app = criarApp();
+    const resposta = await app.inject({ method: 'POST', url: '/api/tarefas', payload: '{quebrado', headers: { 'content-type': 'application/json' } });
+    expect(resposta.statusCode).toBe(400);
+    expect(resposta.json().detail).toBe('O corpo da requisição não é um JSON válido.');
+    await app.close();
+  });
+
+  it('corpo grande demais -> 400 com detail em pt-BR', async () => {
+    const app = criarApp();
+    const resposta = await app.inject({
+      method: 'POST',
+      url: '/api/tarefas',
+      payload: JSON.stringify({ titulo: 'a'.repeat(2_000_000) }),
+      headers: { 'content-type': 'application/json' },
+    });
+    expect(resposta.statusCode).toBe(400);
+    expect(resposta.json().detail).toBe('O corpo da requisição é grande demais.');
     await app.close();
   });
 });

@@ -22,6 +22,21 @@ function compararTarefas(a: Tarefa, b: Tarefa): number {
   return porPrioridade !== 0 ? porPrioridade : a.id - b.id;
 }
 
+// Texto em pt-BR por código de erro do Fastify; nunca repassa a mensagem crua (inglês).
+function detalheDeCorpo(erro: Error): string {
+  const codigo = 'code' in erro ? erro.code : undefined;
+  switch (codigo) {
+    case 'FST_ERR_CTP_BODY_TOO_LARGE':
+      return 'O corpo da requisição é grande demais.';
+    case 'FST_ERR_CTP_INVALID_MEDIA_TYPE':
+      return 'O tipo de conteúdo deve ser application/json.';
+    case 'FST_ERR_CTP_EMPTY_JSON_BODY':
+      return 'O corpo da requisição está vazio.';
+    default:
+      return 'O corpo da requisição não é um JSON válido.';
+  }
+}
+
 export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
   const repositorio = opcoes.repositorio ?? new TarefaRepositorioMemoria();
   const agora = opcoes.agora ?? (() => new Date());
@@ -31,10 +46,13 @@ export function criarApp(opcoes: OpcoesApp = {}): FastifyInstance {
   app.setErrorHandler((erro, _requisicao, resposta) => {
     const status = erro instanceof Error && 'statusCode' in erro && typeof erro.statusCode === 'number' ? erro.statusCode : 500;
     if (status >= 400 && status < 500 && erro instanceof Error) {
-      return problema(resposta, 400, 'Requisição inválida', [], erro.message);
+      return problema(resposta, 400, 'Requisição inválida', [], detalheDeCorpo(erro));
     }
     return problema(resposta, 500, 'Erro interno');
   });
+
+  // Rota inexistente ou método não suportado: mesmo formato problem+json.
+  app.setNotFoundHandler((_requisicao, resposta) => problema(resposta, 404, 'Recurso não encontrado'));
 
   // Rota de fumaça (T-01), removível.
   app.get('/api/saude', async () => ({ status: 'ok' }));
