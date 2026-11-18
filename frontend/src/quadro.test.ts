@@ -419,6 +419,24 @@ describe('menu "Mover para…" (disclosure)', () => {
     expect(lista(6).hidden).toBe(false);
   });
 
+  it('U-1: mousedown no "Mover para…" de outro cartão não fecha o menu aberto antes do clique, e o clique abre B e fecha A', () => {
+    desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO'), t(6, 'B', 'IDEALIZADO')] });
+    botaoMover(5).click();
+    botaoMover(5).focus(); // o clique real no botão de A deixa o foco nele
+    const alvo = botaoMover(6);
+    // Sequência real do navegador: mousedown -> (foco muda: focusout em A) -> layout -> mouseup/click.
+    alvo.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    alvo.focus();
+    // Se A fechou aqui, a lista (em fluxo) sumiria e B subiria: o mouseup cairia fora de B e o clique se perderia.
+    const alvoDoMouseup: HTMLElement = lista(5).hidden ? cartaoDe(6).parentElement! : alvo;
+    alvoDoMouseup.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    alvoDoMouseup.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(lista(6).hidden).toBe(false);
+    expect(botaoMover(6).getAttribute('aria-expanded')).toBe('true');
+    expect(lista(5).hidden).toBe(true);
+    expect(botaoMover(5).getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('clicar dentro do menu (na lista) não fecha por causa do clique fora', () => {
     desenhar({ tipo: 'pronto', tarefas: [t(5, 'A', 'IDEALIZADO')] });
     botaoMover(5).click();

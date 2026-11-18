@@ -104,11 +104,28 @@ export function criarMenuMover(
     if (!(ev.target instanceof Node) || !menu.contains(ev.target)) definirAberto(false);
   };
 
+  // U-1: o mousedown em outro botão move o foco e dispararia o focusout abaixo; fechar nesse instante
+  // sobe o layout (a lista é em fluxo) e o mouseup cai em outro elemento, perdendo o clique. Então um focusout
+  // causado por mouse é ignorado: o `click` fora (aoClicarFora) já fecha, depois do clique completo.
+  let focoPorMouse = false;
+  const aoApertarMouse = (): void => {
+    focoPorMouse = true;
+    setTimeout(() => {
+      focoPorMouse = false; // a troca de foco do mousedown acontece na mesma tarefa, antes deste timer
+    }, 0);
+  };
+
   function definirAberto(aberto: boolean): void {
     botao.setAttribute('aria-expanded', String(aberto));
     lista.hidden = !aberto;
-    if (aberto) doc.addEventListener('click', aoClicarFora);
-    else doc.removeEventListener('click', aoClicarFora);
+    if (aberto) {
+      doc.addEventListener('click', aoClicarFora);
+      doc.addEventListener('mousedown', aoApertarMouse, true);
+    } else {
+      doc.removeEventListener('click', aoClicarFora);
+      doc.removeEventListener('mousedown', aoApertarMouse, true);
+      focoPorMouse = false;
+    }
   }
 
   for (const destino of STATUS.filter((s) => s !== tarefa.status)) {
@@ -128,6 +145,7 @@ export function criarMenuMover(
   botao.addEventListener('click', () => definirAberto(botao.getAttribute('aria-expanded') !== 'true'));
   // Tab (ou foco programático) para fora do menu fecha. relatedTarget nulo (janela perdeu o foco) não fecha.
   menu.addEventListener('focusout', (ev) => {
+    if (focoPorMouse) return;
     if (ev.relatedTarget instanceof Node && !menu.contains(ev.relatedTarget)) definirAberto(false);
   });
   menu.addEventListener('keydown', (ev) => {
