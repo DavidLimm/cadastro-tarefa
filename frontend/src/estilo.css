@@ -10,6 +10,7 @@
   --texto-suave: #5a6078;
   --linha: #d5d9e6;
   --borda-controle: #8a90a8; /* borda de botão secundário e de campo: 3:1 ou mais sobre branco */
+  --borda-vazio: #707690; /* borda tracejada de "Nenhuma tarefa": 3:1 ou mais sobre o fundo e sobre o alvo de arrasto */
   --roxo: #5b3fd9;
   --roxo-escuro: #4a30b8;
   --roxo-fundo: #ece8fc;
@@ -270,7 +271,7 @@ button {
 .vazio {
   margin: 0;
   padding: 14px;
-  border: 1px dashed var(--borda-controle);
+  border: 1px dashed var(--borda-vazio);
   border-radius: var(--raio);
 }
 

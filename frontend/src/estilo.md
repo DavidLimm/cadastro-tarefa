@@ -62,6 +62,8 @@ Os valores do ADR 0007 eram ponto de partida; vale o que passou na medição.
 | Borda de campo/select | #8a90a8 sobre #ffffff | 3.16:1 | 3:1 | OK |
 | Borda tracejada da coluna alvo sobre o fundo | #5b3fd9 sobre #eef0f6 | 5.84:1 | 3:1 | OK |
 | Borda tracejada da coluna alvo sobre o seu fundo | #5b3fd9 sobre #e2dcfb | 5.02:1 | 3:1 | OK |
+| Borda tracejada de "Nenhuma tarefa" sobre o fundo | #707690 sobre #eef0f6 | 3.94:1 | 3:1 | OK |
+| Borda tracejada de "Nenhuma tarefa" sobre o alvo de arrasto | #707690 sobre #e2dcfb | 3.39:1 | 3:1 | OK |
 | Anel de foco sobre o fundo da página | #1d4ed8 sobre #eef0f6 | 5.88:1 | 3:1 | OK |
 | Anel de foco sobre branco (cartão, diálogo, menu) | #1d4ed8 sobre #ffffff | 6.70:1 | 3:1 | OK |
 | Anel de foco sobre cartão vencido | #1d4ed8 sobre #fff5f5 | 6.26:1 | 3:1 | OK |

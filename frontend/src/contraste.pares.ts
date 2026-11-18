@@ -60,6 +60,8 @@ export const PARES: readonly Par[] = [
   { uso: 'Borda de campo/select', fg: '--borda-controle', bg: '--superficie', min: 3 },
   { uso: 'Borda tracejada da coluna alvo sobre o fundo', fg: '--alvo-borda', bg: '--fundo', min: 3 },
   { uso: 'Borda tracejada da coluna alvo sobre o seu fundo', fg: '--alvo-borda', bg: '--alvo-fundo', min: 3 },
+  { uso: 'Borda tracejada de "Nenhuma tarefa" sobre o fundo', fg: '--borda-vazio', bg: '--fundo', min: 3 },
+  { uso: 'Borda tracejada de "Nenhuma tarefa" sobre o alvo de arrasto', fg: '--borda-vazio', bg: '--alvo-fundo', min: 3 },
   // Anel de foco
   { uso: 'Anel de foco sobre o fundo da página', fg: '--foco', bg: '--fundo', min: 3 },
   { uso: 'Anel de foco sobre branco (cartão, diálogo, menu)', fg: '--foco', bg: '--superficie', min: 3 },
