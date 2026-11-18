@@ -32,9 +32,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return e;
 }
 
-function botao(doc: Document, texto: string, classe: string, aoClicar?: () => void): HTMLButtonElement {
+function botao(doc: Document, texto: string, classe: string, foco: string, aoClicar?: () => void): HTMLButtonElement {
   const b = el(doc, 'button', classe, texto);
   b.type = 'button';
+  b.dataset.foco = foco; // identifica o botão para restaurar o foco depois de redesenhar
   if (aoClicar) b.addEventListener('click', aoClicar);
   return b;
 }
@@ -64,13 +65,22 @@ function cabecalho(doc: Document, total: number | undefined, acoes: AcoesQuadro)
   const cab = el(doc, 'header', 'cabecalho');
   const h1 = el(doc, 'h1', undefined, TITULO_PAGINA);
   if (total !== undefined) h1.append(' ', el(doc, 'span', 'contador', String(total)));
-  cab.append(h1, botao(doc, 'Adicionar tarefa', 'botao-primario', acoes.aoAdicionar));
+  cab.append(h1, botao(doc, 'Adicionar tarefa', 'botao-primario', 'adicionar', acoes.aoAdicionar));
   return cab;
+}
+
+/** Pede que o foco vá para o botão `data-foco=id` assim que ele existir no quadro (sobrevive a redesenhos). */
+export function pedirFoco(raiz: HTMLElement, id: string): void {
+  raiz.dataset.focoPendente = id;
 }
 
 /** Redesenha todo o quadro dentro de `raiz` conforme o estado. */
 export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes: AcoesQuadro): void {
   const doc = raiz.ownerDocument;
+  // O redesenho apaga os elementos: guarda quem tinha o foco para devolvê-lo ao equivalente novo.
+  const ativo = doc.activeElement;
+  const focoAtual = ativo instanceof HTMLElement && raiz.contains(ativo) ? ativo.dataset.foco : undefined;
+  const alvo = raiz.dataset.focoPendente ?? focoAtual;
   const filhos: HTMLElement[] = [];
 
   if (estado.tipo === 'carregando') {
@@ -80,7 +90,7 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
     doc.title = TITULO_PAGINA;
     const erro = el(doc, 'div', 'erro');
     erro.setAttribute('role', 'alert');
-    erro.append(el(doc, 'p', undefined, estado.mensagem), botao(doc, 'Tentar de novo', 'botao-secundario', acoes.aoRecarregar));
+    erro.append(el(doc, 'p', undefined, estado.mensagem), botao(doc, 'Tentar de novo', 'botao-secundario', 'tentar', acoes.aoRecarregar));
     filhos.push(cabecalho(doc, undefined, acoes), erro);
   } else {
     const total = estado.tarefas.length;
@@ -94,4 +104,16 @@ export function renderizarQuadro(raiz: HTMLElement, estado: EstadoQuadro, acoes:
     filhos.push(quadro);
   }
   raiz.replaceChildren(...filhos);
+
+  if (alvo === undefined) return;
+  const novo = raiz.querySelector<HTMLElement>(`[data-foco="${alvo}"]`);
+  if (novo) {
+    novo.focus();
+    delete raiz.dataset.focoPendente;
+  } else if (estado.tipo === 'carregando') {
+    raiz.dataset.focoPendente = alvo; // o botão ainda não existe: tenta de novo no próximo desenho
+  } else {
+    delete raiz.dataset.focoPendente;
+    raiz.querySelector<HTMLElement>('[data-foco="adicionar"]')?.focus(); // ex.: o erro sumiu
+  }
 }

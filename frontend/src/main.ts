@@ -1,15 +1,24 @@
-import { listarTarefas } from './api.js';
+import { criarTarefa, listarTarefas } from './api.js';
+import { criarDialogo } from './dialogo.js';
 import { TITULO_PAGINA } from './inicio.js';
-import { renderizarQuadro, type EstadoQuadro } from './quadro.js';
+import { pedirFoco, renderizarQuadro, type EstadoQuadro } from './quadro.js';
 
 document.title = TITULO_PAGINA;
 
 const raiz = document.getElementById('app');
 if (!raiz) throw new Error('Elemento #app não encontrado em index.html');
 
+const dialogo = criarDialogo(document, {
+  criarTarefa,
+  aoSalvo: () => {
+    if (raiz) pedirFoco(raiz, 'adicionar'); // o quadro é redesenhado: devolve o foco ao botão novo
+    void carregar();
+  },
+});
+document.body.append(dialogo.elemento);
+
 function desenhar(estado: EstadoQuadro): void {
-  // T-09: passar aoAdicionar para abrir o diálogo de cadastro.
-  if (raiz) renderizarQuadro(raiz, estado, { aoRecarregar: () => void carregar() });
+  if (raiz) renderizarQuadro(raiz, estado, { aoRecarregar: () => void carregar(), aoAdicionar: dialogo.abrir });
 }
 
 async function carregar(): Promise<void> {

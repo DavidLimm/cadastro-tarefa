@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Tarefa } from '../../shared/contrato.js';
-import { formatarPrazo, renderizarQuadro, type EstadoQuadro } from './quadro.js';
+import { formatarPrazo, pedirFoco, renderizarQuadro, type EstadoQuadro } from './quadro.js';
 
 const t = (id: number, titulo: string, prioridade: Tarefa['prioridade'], prazo = '2030-06-15'): Tarefa => ({
   id,
@@ -128,5 +128,40 @@ describe('quadro carregando e erro', () => {
     desenhar({ tipo: 'pronto', tarefas: [t(1, 'A', 'ALTA')] });
     desenhar({ tipo: 'pronto', tarefas: [t(1, 'A', 'ALTA')] });
     expect(raiz.querySelectorAll('.cartao')).toHaveLength(1);
+  });
+});
+
+describe('foco depois de redesenhar', () => {
+  const botaoPor = (id: string) => raiz.querySelector<HTMLElement>(`[data-foco="${id}"]`);
+  const a = acoes();
+
+  it('"Tentar de novo" mantém o foco no botão quando ainda há erro após carregar', () => {
+    desenhar({ tipo: 'erro', mensagem: 'x' }, a);
+    botaoPor('tentar')?.focus();
+    desenhar({ tipo: 'carregando' }, a);
+    desenhar({ tipo: 'erro', mensagem: 'y' }, a);
+    expect(document.activeElement).toBe(botaoPor('tentar'));
+  });
+
+  it('"Tentar de novo" com sucesso leva o foco ao botão "Adicionar tarefa"', () => {
+    desenhar({ tipo: 'erro', mensagem: 'x' }, a);
+    botaoPor('tentar')?.focus();
+    desenhar({ tipo: 'carregando' }, a);
+    desenhar({ tipo: 'pronto', tarefas: [] }, a);
+    expect(document.activeElement).toBe(botaoPor('adicionar'));
+  });
+
+  it('pedirFoco("adicionar") sobrevive ao recarregamento (carregando e pronto)', () => {
+    desenhar({ tipo: 'pronto', tarefas: [] }, a);
+    pedirFoco(raiz, 'adicionar');
+    desenhar({ tipo: 'carregando' }, a);
+    desenhar({ tipo: 'pronto', tarefas: [t(1, 'A', 'ALTA')] }, a);
+    expect(document.activeElement).toBe(botaoPor('adicionar'));
+  });
+
+  it('não rouba o foco quando nada dentro do quadro o tinha', () => {
+    desenhar({ tipo: 'carregando' }, a);
+    desenhar({ tipo: 'pronto', tarefas: [] }, a);
+    expect(document.activeElement).toBe(document.body);
   });
 });
