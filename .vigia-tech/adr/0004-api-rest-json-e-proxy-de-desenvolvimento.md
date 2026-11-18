@@ -21,7 +21,7 @@ Sub-decisão, como o navegador enxerga as duas portas:
 ## Decisão
 REST/JSON com sub-decisão A. Contrato:
 - `POST /api/tarefas` corpo `{ "titulo": string, "prioridade": "BAIXA"|"MEDIA"|"ALTA", "prazo": "YYYY-MM-DD" }`
-  -> 201 com `{ id, titulo, prioridade, prazo, criadaEm }` e header `Location`.
+  -> 201 com `{ id, titulo, prioridade, prazo }` e header `Location`.
 - `GET /api/tarefas` -> 200 com array, ordenado por prazo crescente, depois prioridade (ALTA primeiro),
   depois id.
 - Erro de validação -> 400 no formato RFC 9457 (`application/problem+json`, montado à mão no handler: `{type, title, status, errors}`)

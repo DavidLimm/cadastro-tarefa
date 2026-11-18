@@ -44,7 +44,7 @@ mobile/responsivo, internacionalização, deploy/Docker/CI, build de produção 
 
 ### R-01 Cadastrar tarefa (API)
 - Dado um JSON válido, quando `POST /api/tarefas`, então 201, corpo com `id`, `titulo` (aparado),
-  `prioridade`, `prazo`, `criadaEm`, e header `Location: /api/tarefas/{id}`.
+  `prioridade`, `prazo`, e header `Location: /api/tarefas/{id}`.
 - Dado `titulo` ausente, vazio ou só espaços, então 400 com erro no campo `titulo`.
 - Dado `titulo` com 101 caracteres, então 400; com exatamente 100, então 201.
 - Dado `prioridade` ausente ou fora de BAIXA/MEDIA/ALTA, então 400 no campo `prioridade`.
