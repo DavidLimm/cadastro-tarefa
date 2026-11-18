@@ -238,6 +238,11 @@ button {
   margin: 0;
 }
 
+/* O atributo hidden sempre vence o display das classes (ex.: .campo {display:grid} ignorava o hidden). */
+[hidden] {
+  display: none !important;
+}
+
 /* Diálogo de cadastro */
 .dialogo {
   width: min(440px, calc(100vw - 32px));
